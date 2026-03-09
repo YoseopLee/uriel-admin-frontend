@@ -1,7 +1,7 @@
 // app/dashboard/register_device/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation"; // 🌟 URL 파라미터 읽기용
 import { FiPlus, FiTrash2, FiImage, FiType, FiLink2 } from "react-icons/fi";
 import { uploadImageToS3 } from "@/utils/uploadImage";
@@ -31,7 +31,7 @@ interface RelatedProduct {
   desc2: string;
 }
 
-export default function RegisterDevicePage() {
+function RegisterDeviceForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const editId = searchParams.get("editId"); // 🌟 URL에 editId가 있으면 '수정 모드'
@@ -846,5 +846,21 @@ export default function RegisterDevicePage() {
         </button>
       </form>
     </div>
+  );
+}
+
+// 🌟 2. 파일 맨 아래에 이것을 새로 추가! (진짜 페이지 컴포넌트)
+export default function RegisterDevicePage() {
+  return (
+    // Suspense로 감싸주면 Vercel 빌드 에러가 사라집니다.
+    <Suspense
+      fallback={
+        <div className="p-10 text-center text-slate-500">
+          페이지를 불러오는 중입니다...
+        </div>
+      }
+    >
+      <RegisterDeviceForm />
+    </Suspense>
   );
 }
