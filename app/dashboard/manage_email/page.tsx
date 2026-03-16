@@ -30,7 +30,11 @@ export default function ManageEmailPage() {
         },
       );
       const data = await res.json();
-      setSubscribers(data);
+      if (res.ok && Array.isArray(data)) {
+        setSubscribers(data);
+      } else {
+        setSubscribers([]);
+      }
     } catch (err) {
       console.error(err);
     } finally {

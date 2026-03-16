@@ -22,7 +22,11 @@ export default function RegisterCategoryPage() {
         `${process.env.NEXT_PUBLIC_API_URL}/api/categories`,
       );
       const data = await res.json();
-      setCategories(data);
+      if (res.ok && Array.isArray(data)) {
+        setCategories(data);
+      } else {
+        setCategories([]);
+      }
     } catch (err) {
       console.error(err);
     }

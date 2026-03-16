@@ -16,7 +16,11 @@ export default function RegisterFaqPage() {
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/faqs`);
       const data = await res.json();
-      setFaqs(data);
+      if (res.ok && Array.isArray(data)) {
+        setFaqs(data);
+      } else {
+        setFaqs([]);
+      }
     } catch (err) {
       console.error(err);
     }

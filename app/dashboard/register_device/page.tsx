@@ -52,6 +52,7 @@ function RegisterDeviceForm() {
     file: null as File | null,
     previewUrl: "",
   });
+  const [seriesName, setSeriesName] = useState(""); // 🌟 시리즈명 (예: "UTH-170 Series")
   const [relatedProducts, setRelatedProducts] = useState<RelatedProduct[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(false); // 수정 모드 시 데이터 로딩 상태
@@ -81,7 +82,8 @@ function RegisterDeviceForm() {
           const data = await res.json();
 
           // 폼 상태에 기존 데이터 세팅
-          if (data.length > 0) setMainCategory(data[0].main_category as string);
+          // 🔧 GET /api/devices/:id 는 단일 객체를 반환하므로 data[0]이 아닌 data로 접근
+          if (data.main_category) setMainCategory(data.main_category as string);
           setSelectedSubCategories(data.sub_category || []);
           setThumbnail({
             file: null,
@@ -107,6 +109,8 @@ function RegisterDeviceForm() {
             );
             setSections(restoredSections);
           }
+
+          setSeriesName(data.series_name || "");
 
           setDetailImage({
             file: null,
@@ -275,6 +279,7 @@ function RegisterDeviceForm() {
             ? fetchedCategories[0].main_category
             : ""),
         sub_category: selectedSubCategories,
+        series_name: seriesName, // 🌟 시리즈명 (예: "UTH-170 Series")
         thumbnail_info: {
           image_url: thumbUrl,
           title: thumbnail.title,
@@ -707,6 +712,25 @@ function RegisterDeviceForm() {
               />
             )}
           </div> */}
+
+          {/* ================= 시리즈명 ================= */}
+          <div className="space-y-4 mb-8">
+            <h3 className="text-lg font-bold text-slate-800 border-b pb-2">
+              시리즈명 (연관 제품 그룹명)
+            </h3>
+            <p className="text-sm text-slate-500">
+              이 제품이 속한 시리즈의 이름입니다. 프론트엔드 상세페이지에서 &quot;○○○ 라인업&quot; 등의 제목으로 사용됩니다.
+              <br />
+              예: &quot;UTH-170 Series&quot;, &quot;URC-02 Series&quot;
+            </p>
+            <input
+              type="text"
+              placeholder="시리즈명 입력 (예: UTH-170 Series)"
+              value={seriesName}
+              onChange={(e) => setSeriesName(e.target.value)}
+              className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900"
+            />
+          </div>
 
           <div>
             <div className="flex justify-between items-center mb-6">

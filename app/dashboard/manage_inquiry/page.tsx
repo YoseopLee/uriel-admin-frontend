@@ -35,7 +35,11 @@ export default function ManageInquiryPage() {
         },
       );
       const data = await res.json();
-      setInquiries(data);
+      if (res.ok && Array.isArray(data)) {
+        setInquiries(data);
+      } else {
+        setInquiries([]);
+      }
     } catch (err) {
       console.error(err);
     } finally {

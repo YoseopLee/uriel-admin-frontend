@@ -27,7 +27,8 @@ export default function ManageDevicesPage() {
   const fetchDevices = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/devices`);
+      // 🔧 어드민에서는 전체 제품 목록을 봐야 하므로 limit를 충분히 크게 설정
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/devices?limit=1000`);
       if (!res.ok) throw new Error("목록 불러오기 실패");
       const jsonResponse = await res.json();
       setDevices(jsonResponse.data || []);
