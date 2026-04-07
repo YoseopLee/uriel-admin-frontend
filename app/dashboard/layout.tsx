@@ -16,6 +16,7 @@ import {
   FiEdit3,
   FiMail,
   FiInbox,
+  FiCoffee,
 } from "react-icons/fi";
 
 export default function DashboardLayout({
@@ -83,6 +84,11 @@ export default function DashboardLayout({
       name: "블로그 관리",
       path: "/dashboard/register_blog",
       icon: <FiEdit3 className="w-5 h-5" />,
+    },
+    {
+      name: "엔지니어 라운지",
+      path: "/dashboard/register_lounge",
+      icon: <FiCoffee className="w-5 h-5" />,
     },
     {
       name: "구독자 이메일 관리",

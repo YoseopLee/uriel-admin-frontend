@@ -26,9 +26,10 @@ interface RelatedProduct {
   file: File | null;
   previewUrl: string;
   title: string;
-  subtitle: string;
   desc1: string;
   desc2: string;
+  desc3: string;
+  desc4: string;
 }
 
 function RegisterDeviceForm() {
@@ -124,9 +125,10 @@ function RegisterDeviceForm() {
                 file: null,
                 previewUrl: rel.thumbnail || "",
                 title: rel.title || "",
-                subtitle: rel.subtitle || "",
-                desc1: rel.description || "",
+                desc1: rel.description1 || rel.description || "",
                 desc2: rel.description2 || "",
+                desc3: rel.description3 || "",
+                desc4: rel.description4 || "",
               }),
             );
             setRelatedProducts(restoredRelated);
@@ -198,9 +200,10 @@ function RegisterDeviceForm() {
         file: null,
         previewUrl: "",
         title: "",
-        subtitle: "",
         desc1: "",
         desc2: "",
+        desc3: "",
+        desc4: "",
       },
     ]);
   const removeRelated = (id: number) =>
@@ -264,9 +267,10 @@ function RegisterDeviceForm() {
           if (rel.file) relImgUrl = await uploadImageToS3(rel.file);
           return {
             title: rel.title,
-            subtitle: rel.subtitle,
-            description: rel.desc1,
+            description1: rel.desc1,
             description2: rel.desc2,
+            description3: rel.desc3,
+            description4: rel.desc4,
             thumbnail: relImgUrl,
           };
         }),
@@ -805,22 +809,7 @@ function RegisterDeviceForm() {
                           ),
                         )
                       }
-                      className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900"
-                    />
-                    <input
-                      type="text"
-                      placeholder="서브타이틀"
-                      value={rel.subtitle}
-                      onChange={(e) =>
-                        setRelatedProducts(
-                          relatedProducts.map((r) =>
-                            r.id === rel.id
-                              ? { ...r, subtitle: e.target.value }
-                              : r,
-                          ),
-                        )
-                      }
-                      className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900"
+                      className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900 col-span-2"
                     />
                     <input
                       type="text"
@@ -846,6 +835,36 @@ function RegisterDeviceForm() {
                           relatedProducts.map((r) =>
                             r.id === rel.id
                               ? { ...r, desc2: e.target.value }
+                              : r,
+                          ),
+                        )
+                      }
+                      className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900"
+                    />
+                    <input
+                      type="text"
+                      placeholder="설명 3"
+                      value={rel.desc3}
+                      onChange={(e) =>
+                        setRelatedProducts(
+                          relatedProducts.map((r) =>
+                            r.id === rel.id
+                              ? { ...r, desc3: e.target.value }
+                              : r,
+                          ),
+                        )
+                      }
+                      className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900"
+                    />
+                    <input
+                      type="text"
+                      placeholder="설명 4"
+                      value={rel.desc4}
+                      onChange={(e) =>
+                        setRelatedProducts(
+                          relatedProducts.map((r) =>
+                            r.id === rel.id
+                              ? { ...r, desc4: e.target.value }
                               : r,
                           ),
                         )
