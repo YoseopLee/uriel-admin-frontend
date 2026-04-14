@@ -61,13 +61,17 @@ export default function RegisterLoungePage() {
       let url = `${process.env.NEXT_PUBLIC_API_URL}/api/lounges?limit=10`;
       if (loadMore && nextPageKey) url += `&lastEvaluatedKey=${nextPageKey}`;
       const res = await fetch(url);
+      if (!res.ok) {
+        console.error("라운지 목록 조회 실패:", res.status);
+        return;
+      }
       const data = await res.json();
       if (loadMore) setLounges((prev) => [...prev, ...(data.data || [])]);
       else setLounges(data.data || []);
       setNextPageKey(data.nextPageKey);
       setHasNextPage(data.hasNextPage);
     } catch (err) {
-      console.error(err);
+      console.error("라운지 목록 fetch 에러:", err);
     }
   };
 
@@ -110,7 +114,6 @@ export default function RegisterLoungePage() {
     try {
       const session = await fetchAuthSession();
       const token = session.tokens?.accessToken?.toString();
-      if (!token) throw new Error("로그인 토큰이 없습니다.");
 
       // 1. 본문 섹션 처리 (IMAGE: 새 파일은 업로드, 없으면 기존 URL 유지)
       const processedSections = await Promise.all(
@@ -169,9 +172,9 @@ export default function RegisterLoungePage() {
       alert(editId ? "수정되었습니다." : "등록되었습니다.");
       resetForm();
       fetchLounges();
-    } catch (error) {
-      console.error(error);
-      alert("오류 발생");
+    } catch (error: any) {
+      console.error("라운지 저장 에러:", error);
+      alert(`오류 발생: ${error?.message || "알 수 없는 에러"}`);
     } finally {
       setIsLoading(false);
     }
@@ -560,7 +563,7 @@ export default function RegisterLoungePage() {
             </div>
           ))}
         </div>
-        {hasNextPage && (
+        {hasNextPage && lounges.length > 0 && (
           <button
             onClick={() => fetchLounges(true)}
             className="w-full mt-4 py-2 border text-slate-600 rounded hover:bg-slate-50"
