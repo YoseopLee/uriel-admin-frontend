@@ -1,9 +1,10 @@
 // app/dashboard/layout.tsx
 "use client"; // 클라이언트 사이드 동작(로그아웃, 메뉴 토글 등)을 위해
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { signOut } from "aws-amplify/auth";
+import { signOut, fetchAuthSession } from "aws-amplify/auth";
 import {
   FiHome,
   FiFileText,
@@ -27,6 +28,40 @@ export default function DashboardLayout({
   const pathname = usePathname(); // 현재 선택된 메뉴를 하이라이트하기 위함
   const router = useRouter();
 
+  // 🌟 인증 가드: 대시보드 진입 시 토큰 유효성 검사
+  // - 한동안 미접속 → refresh token까지 만료 시 fetchAuthSession()이 빈 토큰 반환
+  // - 이 경우 자동으로 signOut() 후 로그인 페이지로 이동시켜
+  //   "API 오류" 메시지 대신 자연스러운 재로그인 흐름 제공
+  const [isAuthChecked, setIsAuthChecked] = useState(false);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        // 만료 임박/만료된 access token은 내부적으로 refresh token으로 자동 갱신
+        const session = await fetchAuthSession();
+        const token = session.tokens?.accessToken?.toString();
+
+        if (!token) {
+          // refresh token까지 만료/무효 → 로그인 화면으로
+          throw new Error("유효한 토큰이 없습니다.");
+        }
+
+        // 토큰 유효 → 정상 진입
+        setIsAuthChecked(true);
+      } catch (err) {
+        console.warn("⚠️ 인증 세션 만료, 로그인 페이지로 이동:", err);
+        // 잔여 세션 안전하게 정리 (signOut 실패는 무시)
+        try {
+          await signOut();
+        } catch (_) {
+          // ignore
+        }
+        router.replace("/");
+      }
+    };
+    checkAuth();
+  }, [router]);
+
   // 로그아웃 처리 함수
   const handleLogout = async () => {
     try {
@@ -37,6 +72,17 @@ export default function DashboardLayout({
       alert("로그아웃 중 문제가 발생했습니다.");
     }
   };
+
+  // 🌟 인증 체크 전에는 로딩 화면 (깜빡임 방지)
+  if (!isAuthChecked) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <div className="text-slate-500 font-semibold animate-pulse">
+          인증 확인 중...
+        </div>
+      </div>
+    );
+  }
 
   // 사이드바 메뉴 목록 업데이트
   const menuItems = [
