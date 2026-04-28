@@ -365,62 +365,62 @@ export default function RegisterLandingPage() {
                       />
                     </div>
 
-                    {/* 🌟 텍스트 색상 + 연결 URL 가로 배치 */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-500 mb-1 flex items-center">
-                          <FiDroplet className="mr-1" /> 텍스트 색상
-                        </label>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="color"
-                            value={slide.textColor}
-                            onChange={(e) =>
-                              updateSlide(
-                                carousel.id,
-                                slide.id,
-                                "textColor",
-                                e.target.value,
-                              )
-                            }
-                            className="h-10 w-12 border border-slate-300 rounded-lg cursor-pointer bg-white p-1"
-                            title="이미지 위에 표시될 텍스트 색상을 선택하세요"
-                          />
-                          <input
-                            type="text"
-                            value={slide.textColor}
-                            onChange={(e) =>
-                              updateSlide(
-                                carousel.id,
-                                slide.id,
-                                "textColor",
-                                e.target.value,
-                              )
-                            }
-                            placeholder="#FFFFFF"
-                            className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm text-slate-900 font-mono"
-                          />
-                        </div>
-                      </div>
-                      <div className="md:col-span-2">
-                        <label className="block text-xs font-semibold text-slate-500 mb-1 flex items-center">
-                          <FiLink className="mr-1" /> 연결 URL (클릭 시 이동)
-                        </label>
+                    {/* 🌟 텍스트 색상 (단독 영역) */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-500 mb-1 flex items-center">
+                        <FiDroplet className="mr-1" /> 텍스트 색상
+                      </label>
+                      <div className="flex items-center gap-2 max-w-xs">
                         <input
-                          type="text"
-                          placeholder="https://uriel.kr/..."
-                          value={slide.linkUrl}
+                          type="color"
+                          value={slide.textColor}
                           onChange={(e) =>
                             updateSlide(
                               carousel.id,
                               slide.id,
-                              "linkUrl",
+                              "textColor",
                               e.target.value,
                             )
                           }
-                          className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm text-slate-900"
+                          className="h-10 w-12 border border-slate-300 rounded-lg cursor-pointer bg-white p-1 flex-shrink-0"
+                          title="이미지 위에 표시될 텍스트 색상을 선택하세요"
+                        />
+                        <input
+                          type="text"
+                          value={slide.textColor}
+                          onChange={(e) =>
+                            updateSlide(
+                              carousel.id,
+                              slide.id,
+                              "textColor",
+                              e.target.value,
+                            )
+                          }
+                          placeholder="#FFFFFF"
+                          className="flex-1 min-w-0 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm text-slate-900 font-mono"
                         />
                       </div>
+                    </div>
+
+                    {/* 🌟 연결 URL (단독 영역) */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-500 mb-1 flex items-center">
+                        <FiLink className="mr-1" /> 연결 URL (클릭 시 이동)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="https://uriel.kr/..."
+                        value={slide.linkUrl}
+                        onChange={(e) =>
+                          updateSlide(
+                            carousel.id,
+                            slide.id,
+                            "linkUrl",
+                            e.target.value,
+                          )
+                        }
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm text-slate-900"
+                      />
                     </div>
 
                     {/* 🌟 텍스트 색상 미리보기 (실제 이미지 위에 표시될 모습) */}
