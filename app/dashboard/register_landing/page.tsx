@@ -9,19 +9,21 @@ import {
   FiLink,
   FiLayers,
   FiAlignLeft,
+  FiDroplet,
 } from "react-icons/fi";
 import { uploadImageToS3 } from "@/utils/uploadImage";
 import { fetchAuthSession } from "aws-amplify/auth";
 
-// 🌟 개별 슬라이드 데이터 구조 (description 추가)
+// 🌟 개별 슬라이드 데이터 구조 (description, textColor 추가)
 interface SlideItem {
   id: number;
   file: File | null;
   previewUrl: string;
   title: string;
   subtitle: string;
-  description: string; // 🌟 새로 추가됨
+  description: string;
   linkUrl: string;
+  textColor: string; // 🌟 슬라이드 텍스트 색상 (hex) - 이미지 위 텍스트 가독성을 위해 어드민이 직접 지정
 }
 
 interface CarouselSection {
@@ -66,7 +68,7 @@ export default function RegisterLandingPage() {
           }
           return {
             ...c,
-            // 🌟 새 슬라이드 추가 시 description 빈 값 추가
+            // 🌟 새 슬라이드 추가 시 description, textColor 빈 값 추가
             slides: [
               ...c.slides,
               {
@@ -77,6 +79,7 @@ export default function RegisterLandingPage() {
                 subtitle: "",
                 description: "",
                 linkUrl: "",
+                textColor: "#FFFFFF", // 기본값: 흰색
               },
             ],
           };
@@ -158,9 +161,10 @@ export default function RegisterLandingPage() {
               return {
                 title: slide.title,
                 subtitle: slide.subtitle,
-                description: slide.description, // 🌟 DB로 전송될 항목에 추가
+                description: slide.description,
                 link_url: slide.linkUrl,
                 image_url: s3Url || slide.previewUrl,
+                text_color: slide.textColor, // 🌟 텍스트 색상 (hex)
               };
             }),
           );
@@ -361,25 +365,90 @@ export default function RegisterLandingPage() {
                       />
                     </div>
 
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-500 mb-1 flex items-center">
-                        <FiLink className="mr-1" /> 연결 URL (클릭 시 이동)
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="https://uriel.kr/..."
-                        value={slide.linkUrl}
-                        onChange={(e) =>
-                          updateSlide(
-                            carousel.id,
-                            slide.id,
-                            "linkUrl",
-                            e.target.value,
-                          )
-                        }
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm text-slate-900"
-                      />
+                    {/* 🌟 텍스트 색상 + 연결 URL 가로 배치 */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-500 mb-1 flex items-center">
+                          <FiDroplet className="mr-1" /> 텍스트 색상
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={slide.textColor}
+                            onChange={(e) =>
+                              updateSlide(
+                                carousel.id,
+                                slide.id,
+                                "textColor",
+                                e.target.value,
+                              )
+                            }
+                            className="h-10 w-12 border border-slate-300 rounded-lg cursor-pointer bg-white p-1"
+                            title="이미지 위에 표시될 텍스트 색상을 선택하세요"
+                          />
+                          <input
+                            type="text"
+                            value={slide.textColor}
+                            onChange={(e) =>
+                              updateSlide(
+                                carousel.id,
+                                slide.id,
+                                "textColor",
+                                e.target.value,
+                              )
+                            }
+                            placeholder="#FFFFFF"
+                            className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm text-slate-900 font-mono"
+                          />
+                        </div>
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-xs font-semibold text-slate-500 mb-1 flex items-center">
+                          <FiLink className="mr-1" /> 연결 URL (클릭 시 이동)
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="https://uriel.kr/..."
+                          value={slide.linkUrl}
+                          onChange={(e) =>
+                            updateSlide(
+                              carousel.id,
+                              slide.id,
+                              "linkUrl",
+                              e.target.value,
+                            )
+                          }
+                          className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm text-slate-900"
+                        />
+                      </div>
                     </div>
+
+                    {/* 🌟 텍스트 색상 미리보기 (실제 이미지 위에 표시될 모습) */}
+                    {slide.previewUrl && (slide.title || slide.subtitle) && (
+                      <div
+                        className="relative w-full h-24 rounded-lg overflow-hidden border border-slate-200"
+                        style={{
+                          backgroundImage: `url(${slide.previewUrl})`,
+                          backgroundSize: "cover",
+                          backgroundPosition: "center",
+                        }}
+                      >
+                        <div className="absolute inset-0 bg-black/20" />
+                        <div
+                          className="relative h-full flex flex-col justify-center px-4"
+                          style={{ color: slide.textColor }}
+                        >
+                          {slide.subtitle && (
+                            <p className="text-xs font-semibold opacity-90">
+                              {slide.subtitle}
+                            </p>
+                          )}
+                          {slide.title && (
+                            <p className="text-base font-bold">{slide.title}</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
