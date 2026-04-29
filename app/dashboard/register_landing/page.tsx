@@ -1,7 +1,7 @@
 // app/dashboard/register_landing/page.tsx
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   FiPlus,
   FiTrash2,
@@ -38,6 +38,65 @@ export default function RegisterLandingPage() {
   ]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // 🌟 기존 데이터 로딩 상태
+  const [isLoading, setIsLoading] = useState(true);
+
+  // 🌟 페이지 진입 시 기존 랜딩페이지 데이터 불러오기
+  // - GET /api/landing-page (퍼블릭, 인증 불필요)
+  // - 응답 구조: { carousel_sections: [{ section_title, slides: [{...}] }] }
+  // - 로컬 state(camelCase)와 매핑 + S3 URL은 previewUrl로 표시
+  useEffect(() => {
+    const loadExistingData = async () => {
+      try {
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/landing-page`,
+        );
+
+        // 404 = 아직 등록된 데이터 없음 → 기본 빈 화면 유지
+        if (res.status === 404) {
+          setIsLoading(false);
+          return;
+        }
+
+        if (!res.ok) {
+          console.error("랜딩페이지 데이터 로드 실패:", res.status);
+          setIsLoading(false);
+          return;
+        }
+
+        const data = await res.json();
+
+        if (
+          Array.isArray(data.carousel_sections) &&
+          data.carousel_sections.length > 0
+        ) {
+          // 응답 구조 → 로컬 state 매핑
+          const restoredCarousels: CarouselSection[] = data.carousel_sections.map(
+            (section: any, sIdx: number) => ({
+              id: Date.now() + sIdx, // 고유 id 생성
+              sectionTitle: section.section_title || "",
+              slides: (section.slides || []).map((slide: any, slIdx: number) => ({
+                id: Date.now() + sIdx * 1000 + slIdx, // 고유 id 생성
+                file: null, // 기존 데이터는 S3 URL만 있고 File 객체는 없음
+                previewUrl: slide.image_url || "",
+                title: slide.title || "",
+                subtitle: slide.subtitle || "",
+                description: slide.description || "",
+                linkUrl: slide.link_url || "",
+                textColor: slide.text_color || "#FFFFFF",
+              })),
+            }),
+          );
+          setCarousels(restoredCarousels);
+        }
+      } catch (err) {
+        console.error("랜딩페이지 데이터 로드 중 오류:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadExistingData();
+  }, []);
 
   // --- 캐러셀 섹션 핸들러 ---
   const addCarouselSection = () => {
@@ -203,10 +262,29 @@ export default function RegisterLandingPage() {
     }
   };
 
+  // 🌟 기존 데이터 로드 중에는 스켈레톤 화면 표시
+  if (isLoading) {
+    return (
+      <div className="max-w-5xl mx-auto bg-white p-8 rounded-xl shadow-sm border border-slate-200">
+        <div className="flex items-center justify-center py-24">
+          <div className="text-slate-500 font-semibold animate-pulse">
+            기존 랜딩페이지 데이터를 불러오는 중...
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-5xl mx-auto bg-white p-8 rounded-xl shadow-sm border border-slate-200">
       <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-8 gap-4">
-        <h2 className="text-2xl font-bold text-slate-800">랜딩페이지 관리</h2>
+        <div>
+          <h2 className="text-2xl font-bold text-slate-800">랜딩페이지 관리</h2>
+          <p className="text-xs text-slate-500 mt-1">
+            ⚠️ 저장 시 기존 데이터를 덮어씁니다. 슬라이드를 삭제하지 않도록
+            주의해주세요.
+          </p>
+        </div>
         <button
           type="button"
           onClick={addCarouselSection}
