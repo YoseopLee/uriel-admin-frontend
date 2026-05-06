@@ -18,6 +18,7 @@ import {
   FiMail,
   FiInbox,
   FiCoffee,
+  FiInfo,
 } from "react-icons/fi";
 
 export default function DashboardLayout({
@@ -95,6 +96,11 @@ export default function DashboardLayout({
       name: "랜딩페이지 관리",
       path: "/dashboard/register_landing",
       icon: <FiImage className="w-5 h-5" />,
+    },
+    {
+      name: "Our Story 관리",
+      path: "/dashboard/register_our_story",
+      icon: <FiInfo className="w-5 h-5" />,
     },
     {
       name: "카테고리 관리",
