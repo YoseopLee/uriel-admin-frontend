@@ -132,14 +132,19 @@ export default function RegisterOurStoryPage() {
     setItems(newItems);
   };
 
-  // 🌟 연도/월 내림차순으로 자동 정렬 (가장 최근이 맨 앞)
-  const sortByDateDesc = () => {
-    if (!window.confirm("연도/월 내림차순(최신순)으로 자동 정렬하시겠습니까?"))
+  // 🌟 연도/월 기반 자동 정렬 (asc: 오래된순, desc: 최신순)
+  const sortByDate = (direction: "asc" | "desc") => {
+    const label = direction === "desc" ? "최신순" : "오래된순";
+    if (
+      !window.confirm(`연도/월 ${label}으로 자동 정렬하시겠습니까?`)
+    )
       return;
     const sorted = [...items].sort((a, b) => {
-      const aKey = `${a.year || "0000"}-${(a.month || "00").padStart(2, "0")}`;
-      const bKey = `${b.year || "0000"}-${(b.month || "00").padStart(2, "0")}`;
-      return bKey.localeCompare(aKey);
+      const aKey = `${(a.year || "0000").padStart(4, "0")}-${(a.month || "00").padStart(2, "0")}`;
+      const bKey = `${(b.year || "0000").padStart(4, "0")}-${(b.month || "00").padStart(2, "0")}`;
+      return direction === "asc"
+        ? aKey.localeCompare(bKey)
+        : bKey.localeCompare(aKey);
     });
     setItems(sorted);
   };
@@ -223,16 +228,26 @@ export default function RegisterOurStoryPage() {
               ⚠️ 저장 시 기존 Our Story를 덮어씁니다.
             </p>
           </div>
-          <div className="flex gap-2 flex-shrink-0">
+          <div className="flex gap-2 flex-shrink-0 flex-wrap">
             {items.length > 1 && (
-              <button
-                type="button"
-                onClick={sortByDateDesc}
-                className="text-sm border border-slate-300 px-3 py-2 rounded-lg bg-white text-slate-600 hover:bg-slate-50 transition-colors"
-                title="연도/월 내림차순(최신순)으로 정렬"
-              >
-                최신순 자동 정렬
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => sortByDate("desc")}
+                  className="text-sm border border-slate-300 px-3 py-2 rounded-lg bg-white text-slate-600 hover:bg-slate-50 transition-colors"
+                  title="연도/월 내림차순(최신 → 과거)으로 정렬"
+                >
+                  최신순 정렬
+                </button>
+                <button
+                  type="button"
+                  onClick={() => sortByDate("asc")}
+                  className="text-sm border border-slate-300 px-3 py-2 rounded-lg bg-white text-slate-600 hover:bg-slate-50 transition-colors"
+                  title="연도/월 오름차순(과거 → 최신)으로 정렬"
+                >
+                  오래된순 정렬
+                </button>
+              </>
             )}
             <button
               type="button"
