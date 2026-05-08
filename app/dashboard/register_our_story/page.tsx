@@ -17,6 +17,7 @@ interface StoryItem {
   engDescription: string; // 🌐 영문 (옵셔널)
   imageFile: File | null; // 새로 선택한 이미지
   imageUrl: string; // 기존 S3 URL (편집 시) 또는 미리보기 blob URL
+  showEng: boolean; // 🌐 영문 입력 칸 표시 여부 (UI 전용, 서버 저장 X)
 }
 
 const currentYear = new Date().getFullYear();
@@ -48,17 +49,23 @@ export default function RegisterOurStoryPage() {
         const data = await res.json();
         if (Array.isArray(data.items)) {
           const restored: StoryItem[] = data.items.map(
-            (item: any, idx: number) => ({
-              id: Date.now() + idx,
-              year: item.year || "",
-              month: item.month || "",
-              title: item.title || "",
-              engTitle: item.eng_title || "", // 🌐 영문
-              description: item.description || "",
-              engDescription: item.eng_description || "", // 🌐 영문
-              imageFile: null,
-              imageUrl: item.image_url || "",
-            }),
+            (item: any, idx: number) => {
+              const engTitle = item.eng_title || "";
+              const engDescription = item.eng_description || "";
+              return {
+                id: Date.now() + idx,
+                year: item.year || "",
+                month: item.month || "",
+                title: item.title || "",
+                engTitle,
+                description: item.description || "",
+                engDescription,
+                imageFile: null,
+                imageUrl: item.image_url || "",
+                // 🌐 기존 영문 데이터 있으면 자동 펼침
+                showEng: !!(engTitle || engDescription),
+              };
+            },
           );
           setItems(restored);
         }
@@ -85,6 +92,7 @@ export default function RegisterOurStoryPage() {
         engDescription: "",
         imageFile: null,
         imageUrl: "",
+        showEng: false, // 🌐 새 카드는 영문 칸 닫힌 상태로 시작
       },
     ]);
   };
@@ -92,6 +100,31 @@ export default function RegisterOurStoryPage() {
   const removeItem = (id: number) => {
     if (!window.confirm("이 카드를 삭제하시겠습니까?")) return;
     setItems(items.filter((item) => item.id !== id));
+  };
+
+  // 🌐 영문 입력 칸 펼치기
+  const openEng = (id: number) => {
+    setItems(
+      items.map((item) =>
+        item.id === id ? { ...item, showEng: true } : item,
+      ),
+    );
+  };
+
+  // 🌐 영문 입력 칸 닫기 + 영문 데이터 비우기
+  const closeEng = (id: number) => {
+    const target = items.find((item) => item.id === id);
+    const hasEngData = !!(target?.engTitle || target?.engDescription);
+    if (hasEngData && !window.confirm("입력한 영문 내용을 비우고 영문 칸을 닫으시겠습니까?")) {
+      return;
+    }
+    setItems(
+      items.map((item) =>
+        item.id === id
+          ? { ...item, engTitle: "", engDescription: "", showEng: false }
+          : item,
+      ),
+    );
   };
 
   const updateItem = (
@@ -366,7 +399,7 @@ export default function RegisterOurStoryPage() {
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-slate-600 mb-1">
-                        제목 <span className="text-slate-400">(한글)</span>
+                        제목 {item.showEng && <span className="text-slate-400">(한글)</span>}
                       </label>
                       <input
                         type="text"
@@ -378,23 +411,25 @@ export default function RegisterOurStoryPage() {
                         className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900 text-sm"
                       />
                     </div>
+                    {item.showEng && (
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-600 mb-1">
+                          Title <span className="text-slate-400">(English, 선택)</span>
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Uriel Electronics Homepage Renewal"
+                          value={item.engTitle}
+                          onChange={(e) =>
+                            updateItem(item.id, "engTitle", e.target.value)
+                          }
+                          className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-lg focus:ring-2 focus:ring-blue-500 focus:bg-white text-slate-900 text-sm"
+                        />
+                      </div>
+                    )}
                     <div>
                       <label className="block text-xs font-semibold text-slate-600 mb-1">
-                        Title <span className="text-slate-400">(English, 선택)</span>
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="e.g. Uriel Electronics Homepage Renewal"
-                        value={item.engTitle}
-                        onChange={(e) =>
-                          updateItem(item.id, "engTitle", e.target.value)
-                        }
-                        className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-lg focus:ring-2 focus:ring-blue-500 focus:bg-white text-slate-900 text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-600 mb-1">
-                        설명 <span className="text-slate-400">(한글)</span>
+                        설명 {item.showEng && <span className="text-slate-400">(한글)</span>}
                       </label>
                       <textarea
                         placeholder="예: 2025년 12월 우리엘전자 온라인 사옥 홈페이지 리뉴얼"
@@ -405,18 +440,40 @@ export default function RegisterOurStoryPage() {
                         className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900 text-sm h-20 resize-none"
                       />
                     </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-600 mb-1">
-                        Description <span className="text-slate-400">(English, 선택)</span>
-                      </label>
-                      <textarea
-                        placeholder="e.g. Uriel Electronics homepage renewal in December 2025"
-                        value={item.engDescription}
-                        onChange={(e) =>
-                          updateItem(item.id, "engDescription", e.target.value)
-                        }
-                        className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-lg focus:ring-2 focus:ring-blue-500 focus:bg-white text-slate-900 text-sm h-20 resize-none"
-                      />
+                    {item.showEng && (
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-600 mb-1">
+                          Description <span className="text-slate-400">(English, 선택)</span>
+                        </label>
+                        <textarea
+                          placeholder="e.g. Uriel Electronics homepage renewal in December 2025"
+                          value={item.engDescription}
+                          onChange={(e) =>
+                            updateItem(item.id, "engDescription", e.target.value)
+                          }
+                          className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-lg focus:ring-2 focus:ring-blue-500 focus:bg-white text-slate-900 text-sm h-20 resize-none"
+                        />
+                      </div>
+                    )}
+                    {/* 🌐 영문 추가/제거 버튼 */}
+                    <div className="pt-1">
+                      {item.showEng ? (
+                        <button
+                          type="button"
+                          onClick={() => closeEng(item.id)}
+                          className="text-xs text-red-500 hover:text-red-700 font-semibold"
+                        >
+                          ✕ 영문 제거
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => openEng(item.id)}
+                          className="text-xs text-blue-600 hover:text-blue-800 font-semibold"
+                        >
+                          + 영문 추가
+                        </button>
+                      )}
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center">
