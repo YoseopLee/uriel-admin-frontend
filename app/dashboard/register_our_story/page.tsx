@@ -12,7 +12,9 @@ interface StoryItem {
   year: string;
   month: string;
   title: string;
+  engTitle: string; // 🌐 영문 (옵셔널)
   description: string;
+  engDescription: string; // 🌐 영문 (옵셔널)
   imageFile: File | null; // 새로 선택한 이미지
   imageUrl: string; // 기존 S3 URL (편집 시) 또는 미리보기 blob URL
 }
@@ -51,7 +53,9 @@ export default function RegisterOurStoryPage() {
               year: item.year || "",
               month: item.month || "",
               title: item.title || "",
+              engTitle: item.eng_title || "", // 🌐 영문
               description: item.description || "",
+              engDescription: item.eng_description || "", // 🌐 영문
               imageFile: null,
               imageUrl: item.image_url || "",
             }),
@@ -76,7 +80,9 @@ export default function RegisterOurStoryPage() {
         year: String(currentYear),
         month: "",
         title: "",
+        engTitle: "",
         description: "",
+        engDescription: "",
         imageFile: null,
         imageUrl: "",
       },
@@ -169,7 +175,9 @@ export default function RegisterOurStoryPage() {
             year: item.year.trim(),
             month: item.month.trim(),
             title: item.title.trim(),
+            eng_title: item.engTitle.trim(), // 🌐 영문 (빈 문자열 허용)
             description: item.description.trim(),
+            eng_description: item.engDescription.trim(), // 🌐 영문
             image_url: finalImageUrl,
           };
         }),
@@ -358,7 +366,7 @@ export default function RegisterOurStoryPage() {
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-slate-600 mb-1">
-                        제목 (Title)
+                        제목 <span className="text-slate-400">(한글)</span>
                       </label>
                       <input
                         type="text"
@@ -372,7 +380,21 @@ export default function RegisterOurStoryPage() {
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-slate-600 mb-1">
-                        설명 (Description)
+                        Title <span className="text-slate-400">(English, 선택)</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Uriel Electronics Homepage Renewal"
+                        value={item.engTitle}
+                        onChange={(e) =>
+                          updateItem(item.id, "engTitle", e.target.value)
+                        }
+                        className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-lg focus:ring-2 focus:ring-blue-500 focus:bg-white text-slate-900 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">
+                        설명 <span className="text-slate-400">(한글)</span>
                       </label>
                       <textarea
                         placeholder="예: 2025년 12월 우리엘전자 온라인 사옥 홈페이지 리뉴얼"
@@ -381,6 +403,19 @@ export default function RegisterOurStoryPage() {
                           updateItem(item.id, "description", e.target.value)
                         }
                         className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900 text-sm h-20 resize-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">
+                        Description <span className="text-slate-400">(English, 선택)</span>
+                      </label>
+                      <textarea
+                        placeholder="e.g. Uriel Electronics homepage renewal in December 2025"
+                        value={item.engDescription}
+                        onChange={(e) =>
+                          updateItem(item.id, "engDescription", e.target.value)
+                        }
+                        className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-lg focus:ring-2 focus:ring-blue-500 focus:bg-white text-slate-900 text-sm h-20 resize-none"
                       />
                     </div>
                     <div>
