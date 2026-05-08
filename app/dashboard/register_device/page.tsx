@@ -19,6 +19,12 @@ interface SectionData {
   description: string;
   buttonTitle: string;
   buttonUrl: string;
+  // 🌐 영문 (옵셔널)
+  engTitle: string;
+  engSubtitle: string;
+  engDescription: string;
+  engButtonTitle: string;
+  showEng: boolean; // UI 전용
 }
 
 interface RelatedProduct {
@@ -30,6 +36,13 @@ interface RelatedProduct {
   desc2: string;
   desc3: string;
   desc4: string;
+  // 🌐 영문 (옵셔널)
+  engTitle: string;
+  engDesc1: string;
+  engDesc2: string;
+  engDesc3: string;
+  engDesc4: string;
+  showEng: boolean; // UI 전용
 }
 
 function RegisterDeviceForm() {
@@ -47,6 +60,9 @@ function RegisterDeviceForm() {
     previewUrl: "",
     title: "",
     subtitle: "",
+    // 🌐 영문 (옵셔널)
+    engTitle: "",
+    engSubtitle: "",
   });
   const [sections, setSections] = useState<SectionData[]>([]);
   const [detailImage, setDetailImage] = useState({
@@ -54,9 +70,90 @@ function RegisterDeviceForm() {
     previewUrl: "",
   });
   const [seriesName, setSeriesName] = useState(""); // 🌟 시리즈명 (예: "UTH-170 Series")
+  const [engSeriesName, setEngSeriesName] = useState(""); // 🌐 영문 시리즈명
+  const [showEngHeader, setShowEngHeader] = useState(false); // 🌐 썸네일/시리즈명 영문 토글
   const [relatedProducts, setRelatedProducts] = useState<RelatedProduct[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(false); // 수정 모드 시 데이터 로딩 상태
+
+  // 🌐 헤더(썸네일+시리즈명) 영문 토글
+  const openHeaderEng = () => setShowEngHeader(true);
+  const closeHeaderEng = () => {
+    const hasEng = !!(thumbnail.engTitle || thumbnail.engSubtitle || engSeriesName);
+    if (hasEng &&
+      !window.confirm("입력한 썸네일/시리즈명 영문 내용을 비우시겠습니까?")) {
+      return;
+    }
+    setThumbnail({ ...thumbnail, engTitle: "", engSubtitle: "" });
+    setEngSeriesName("");
+    setShowEngHeader(false);
+  };
+
+  // 🌐 섹션별 영문 토글
+  const openSectionEng = (id: number) =>
+    setSections(sections.map((s) => (s.id === id ? { ...s, showEng: true } : s)));
+  const closeSectionEng = (id: number) => {
+    const target = sections.find((s) => s.id === id);
+    const hasEng = !!(
+      target?.engTitle ||
+      target?.engSubtitle ||
+      target?.engDescription ||
+      target?.engButtonTitle
+    );
+    if (hasEng &&
+      !window.confirm("이 섹션의 영문 내용을 비우시겠습니까?")) {
+      return;
+    }
+    setSections(
+      sections.map((s) =>
+        s.id === id
+          ? {
+              ...s,
+              engTitle: "",
+              engSubtitle: "",
+              engDescription: "",
+              engButtonTitle: "",
+              showEng: false,
+            }
+          : s,
+      ),
+    );
+  };
+
+  // 🌐 연관 제품별 영문 토글
+  const openRelatedEng = (id: number) =>
+    setRelatedProducts(
+      relatedProducts.map((r) => (r.id === id ? { ...r, showEng: true } : r)),
+    );
+  const closeRelatedEng = (id: number) => {
+    const target = relatedProducts.find((r) => r.id === id);
+    const hasEng = !!(
+      target?.engTitle ||
+      target?.engDesc1 ||
+      target?.engDesc2 ||
+      target?.engDesc3 ||
+      target?.engDesc4
+    );
+    if (hasEng &&
+      !window.confirm("이 연관 제품의 영문 내용을 비우시겠습니까?")) {
+      return;
+    }
+    setRelatedProducts(
+      relatedProducts.map((r) =>
+        r.id === id
+          ? {
+              ...r,
+              engTitle: "",
+              engDesc1: "",
+              engDesc2: "",
+              engDesc3: "",
+              engDesc4: "",
+              showEng: false,
+            }
+          : r,
+      ),
+    );
+  };
 
   // 1. 카테고리 로드 및 수정 모드 데이터 불러오기
   useEffect(() => {
@@ -86,32 +183,63 @@ function RegisterDeviceForm() {
           // 🔧 GET /api/devices/:id 는 단일 객체를 반환하므로 data[0]이 아닌 data로 접근
           if (data.main_category) setMainCategory(data.main_category as string);
           setSelectedSubCategories(data.sub_category || []);
+
+          const engThumbTitle = data.thumbnail_info?.eng_title || "";
+          const engThumbSubtitle = data.thumbnail_info?.eng_subtitle || "";
+          const eSeriesName = data.eng_series_name || "";
+
           setThumbnail({
             file: null,
-            previewUrl: data.thumbnail_info.image_url,
-            title: data.thumbnail_info.title,
-            subtitle: data.thumbnail_info.subtitle || "",
+            previewUrl: data.thumbnail_info?.image_url || "",
+            title: data.thumbnail_info?.title || "",
+            subtitle: data.thumbnail_info?.subtitle || "",
+            engTitle: engThumbTitle,
+            engSubtitle: engThumbSubtitle,
           });
 
-          // 섹션 데이터 복원
+          // 섹션 데이터 복원 (🌐 영문 포함)
           if (data.sections) {
             const restoredSections = data.sections.map(
-              (sec: any, idx: number) => ({
-                id: Date.now() + idx,
-                type: sec.type,
-                files: [],
-                previewUrls: sec.type === "IMAGE" ? sec.images || [] : [],
-                title: sec.title || "",
-                subtitle: sec.subtitle || "",
-                description: sec.description || "",
-                buttonTitle: sec.type === "BUTTON" ? sec.title || "" : "",
-                buttonUrl: sec.link_url || "",
-              }),
+              (sec: any, idx: number) => {
+                const engTitle = sec.eng_title || "";
+                const engSubtitle = sec.eng_subtitle || "";
+                const engDescription = sec.eng_description || "";
+                const engButtonTitle =
+                  sec.type === "BUTTON" ? sec.eng_title || "" : "";
+                return {
+                  id: Date.now() + idx,
+                  type: sec.type,
+                  files: [],
+                  previewUrls: sec.type === "IMAGE" ? sec.images || [] : [],
+                  title: sec.title || "",
+                  subtitle: sec.subtitle || "",
+                  description: sec.description || "",
+                  buttonTitle: sec.type === "BUTTON" ? sec.title || "" : "",
+                  buttonUrl: sec.link_url || "",
+                  engTitle: sec.type === "BUTTON" ? "" : engTitle,
+                  engSubtitle: sec.type === "BUTTON" ? "" : engSubtitle,
+                  engDescription: sec.type === "BUTTON" ? "" : engDescription,
+                  engButtonTitle,
+                  // 🌐 영문 데이터 있으면 자동 펼침 (TEXT/BUTTON만)
+                  showEng:
+                    sec.type === "TEXT"
+                      ? !!(engTitle || engSubtitle || engDescription)
+                      : sec.type === "BUTTON"
+                        ? !!engButtonTitle
+                        : false,
+                };
+              },
             );
             setSections(restoredSections);
           }
 
           setSeriesName(data.series_name || "");
+          setEngSeriesName(eSeriesName);
+
+          // 🌐 헤더 영문 자동 펼침
+          setShowEngHeader(
+            !!(engThumbTitle || engThumbSubtitle || eSeriesName),
+          );
 
           setDetailImage({
             file: null,
@@ -120,16 +248,29 @@ function RegisterDeviceForm() {
 
           if (data.related_product_list) {
             const restoredRelated = data.related_product_list.map(
-              (rel: any, idx: number) => ({
-                id: Date.now() + idx,
-                file: null,
-                previewUrl: rel.thumbnail || "",
-                title: rel.title || "",
-                desc1: rel.description1 || rel.description || "",
-                desc2: rel.description2 || "",
-                desc3: rel.description3 || "",
-                desc4: rel.description4 || "",
-              }),
+              (rel: any, idx: number) => {
+                const engTitle = rel.eng_title || "";
+                const engDesc1 = rel.eng_description1 || "";
+                const engDesc2 = rel.eng_description2 || "";
+                const engDesc3 = rel.eng_description3 || "";
+                const engDesc4 = rel.eng_description4 || "";
+                return {
+                  id: Date.now() + idx,
+                  file: null,
+                  previewUrl: rel.thumbnail || "",
+                  title: rel.title || "",
+                  desc1: rel.description1 || rel.description || "",
+                  desc2: rel.description2 || "",
+                  desc3: rel.description3 || "",
+                  desc4: rel.description4 || "",
+                  engTitle,
+                  engDesc1,
+                  engDesc2,
+                  engDesc3,
+                  engDesc4,
+                  showEng: !!(engTitle || engDesc1 || engDesc2 || engDesc3 || engDesc4),
+                };
+              },
             );
             setRelatedProducts(restoredRelated);
           }
@@ -188,6 +329,11 @@ function RegisterDeviceForm() {
         description: "",
         buttonTitle: "",
         buttonUrl: "",
+        engTitle: "",
+        engSubtitle: "",
+        engDescription: "",
+        engButtonTitle: "",
+        showEng: false,
       },
     ]);
   const removeSection = (id: number) =>
@@ -204,6 +350,12 @@ function RegisterDeviceForm() {
         desc2: "",
         desc3: "",
         desc4: "",
+        engTitle: "",
+        engDesc1: "",
+        engDesc2: "",
+        engDesc3: "",
+        engDesc4: "",
+        showEng: false,
       },
     ]);
   const removeRelated = (id: number) =>
@@ -246,12 +398,17 @@ function RegisterDeviceForm() {
               title: sec.title,
               subtitle: sec.subtitle,
               description: sec.description,
+              // 🌐 영문 (옵셔널)
+              eng_title: sec.engTitle,
+              eng_subtitle: sec.engSubtitle,
+              eng_description: sec.engDescription,
             };
           } else if (sec.type === "BUTTON") {
             return {
               type: "BUTTON",
               title: sec.buttonTitle,
               link_url: sec.buttonUrl,
+              eng_title: sec.engButtonTitle, // 🌐
             };
           }
         }),
@@ -272,6 +429,12 @@ function RegisterDeviceForm() {
             description3: rel.desc3,
             description4: rel.desc4,
             thumbnail: relImgUrl,
+            // 🌐 영문 (옵셔널)
+            eng_title: rel.engTitle,
+            eng_description1: rel.engDesc1,
+            eng_description2: rel.engDesc2,
+            eng_description3: rel.engDesc3,
+            eng_description4: rel.engDesc4,
           };
         }),
       );
@@ -283,11 +446,14 @@ function RegisterDeviceForm() {
             ? fetchedCategories[0].main_category
             : ""),
         sub_category: selectedSubCategories,
-        series_name: seriesName, // 🌟 시리즈명 (예: "UTH-170 Series")
+        series_name: seriesName,
+        eng_series_name: engSeriesName, // 🌐 영문 시리즈명
         thumbnail_info: {
           image_url: thumbUrl,
           title: thumbnail.title,
           subtitle: thumbnail.subtitle,
+          eng_title: thumbnail.engTitle, // 🌐
+          eng_subtitle: thumbnail.engSubtitle,
         },
         sections: processedSections,
         product_detail_image: detailImgUrl,
@@ -437,26 +603,68 @@ function RegisterDeviceForm() {
                 />
               )}
             </div>
-            <div className="col-span-2 space-y-4">
-              <input
-                type="text"
-                placeholder="썸네일 타이틀 (제품명)"
-                value={thumbnail.title}
-                onChange={(e) =>
-                  setThumbnail({ ...thumbnail, title: e.target.value })
-                }
-                className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900"
-                required
-              />
-              <input
-                type="text"
-                placeholder="썸네일 서브타이틀 (한줄 설명)"
-                value={thumbnail.subtitle}
-                onChange={(e) =>
-                  setThumbnail({ ...thumbnail, subtitle: e.target.value })
-                }
-                className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900"
-              />
+            <div className="col-span-2 space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 mb-1">
+                  썸네일 타이틀 {showEngHeader && <span className="text-slate-400 font-normal">(한글)</span>}
+                </label>
+                <input
+                  type="text"
+                  placeholder="제품명"
+                  value={thumbnail.title}
+                  onChange={(e) =>
+                    setThumbnail({ ...thumbnail, title: e.target.value })
+                  }
+                  className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900"
+                  required
+                />
+              </div>
+              {showEngHeader && (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1">
+                    Title <span className="text-slate-400 font-normal">(English, 선택)</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. UTH-170"
+                    value={thumbnail.engTitle}
+                    onChange={(e) =>
+                      setThumbnail({ ...thumbnail, engTitle: e.target.value })
+                    }
+                    className="w-full px-4 py-3 border border-slate-200 bg-white rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900"
+                  />
+                </div>
+              )}
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 mb-1">
+                  썸네일 서브타이틀 {showEngHeader && <span className="text-slate-400 font-normal">(한글)</span>}
+                </label>
+                <input
+                  type="text"
+                  placeholder="한줄 설명"
+                  value={thumbnail.subtitle}
+                  onChange={(e) =>
+                    setThumbnail({ ...thumbnail, subtitle: e.target.value })
+                  }
+                  className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900"
+                />
+              </div>
+              {showEngHeader && (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1">
+                    Subtitle <span className="text-slate-400 font-normal">(English, 선택)</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Standard Electric Heating Controller"
+                    value={thumbnail.engSubtitle}
+                    onChange={(e) =>
+                      setThumbnail({ ...thumbnail, engSubtitle: e.target.value })
+                    }
+                    className="w-full px-4 py-3 border border-slate-200 bg-white rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900"
+                  />
+                </div>
+              )}
             </div>
           </div>
         </section>
@@ -578,7 +786,7 @@ function RegisterDeviceForm() {
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-xs font-semibold text-slate-500 mb-1">
-                          텍스트 타이틀
+                          텍스트 타이틀 {sec.showEng && <span className="text-slate-400 font-normal">(한글)</span>}
                         </label>
                         <input
                           type="text"
@@ -598,7 +806,7 @@ function RegisterDeviceForm() {
                       </div>
                       <div>
                         <label className="block text-xs font-semibold text-slate-500 mb-1">
-                          텍스트 서브타이틀
+                          텍스트 서브타이틀 {sec.showEng && <span className="text-slate-400 font-normal">(한글)</span>}
                         </label>
                         <input
                           type="text"
@@ -617,9 +825,53 @@ function RegisterDeviceForm() {
                         />
                       </div>
                     </div>
+                    {sec.showEng && (
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-500 mb-1">
+                            Title <span className="text-slate-400 font-normal">(English, 선택)</span>
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="e.g. Innovative Technology"
+                            value={sec.engTitle}
+                            onChange={(e) =>
+                              setSections(
+                                sections.map((s) =>
+                                  s.id === sec.id
+                                    ? { ...s, engTitle: e.target.value }
+                                    : s,
+                                ),
+                              )
+                            }
+                            className="w-full px-4 py-2 border border-slate-200 bg-slate-50 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:bg-white text-slate-900"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-500 mb-1">
+                            Subtitle <span className="text-slate-400 font-normal">(English, 선택)</span>
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Subtitle in English"
+                            value={sec.engSubtitle}
+                            onChange={(e) =>
+                              setSections(
+                                sections.map((s) =>
+                                  s.id === sec.id
+                                    ? { ...s, engSubtitle: e.target.value }
+                                    : s,
+                                ),
+                              )
+                            }
+                            className="w-full px-4 py-2 border border-slate-200 bg-slate-50 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:bg-white text-slate-900"
+                          />
+                        </div>
+                      </div>
+                    )}
                     <div>
                       <label className="block text-xs font-semibold text-slate-500 mb-1">
-                        상세 설명 본문
+                        상세 설명 본문 {sec.showEng && <span className="text-slate-400 font-normal">(한글)</span>}
                       </label>
                       <textarea
                         placeholder="제품에 대한 상세 설명을 입력하세요."
@@ -636,51 +888,142 @@ function RegisterDeviceForm() {
                         className="w-full px-4 py-2 border rounded-lg h-28 focus:ring-2 focus:ring-indigo-500 resize-none text-slate-900"
                       />
                     </div>
+                    {sec.showEng && (
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-500 mb-1">
+                          Description <span className="text-slate-400 font-normal">(English, 선택)</span>
+                        </label>
+                        <textarea
+                          placeholder="Detailed description in English"
+                          value={sec.engDescription}
+                          onChange={(e) =>
+                            setSections(
+                              sections.map((s) =>
+                                s.id === sec.id
+                                  ? { ...s, engDescription: e.target.value }
+                                  : s,
+                              ),
+                            )
+                          }
+                          className="w-full px-4 py-2 border border-slate-200 bg-slate-50 rounded-lg h-28 focus:ring-2 focus:ring-indigo-500 focus:bg-white resize-none text-slate-900"
+                        />
+                      </div>
+                    )}
+
+                    {/* 🌐 섹션 영문 토글 (TEXT) */}
+                    <div className="pt-1">
+                      {sec.showEng ? (
+                        <button
+                          type="button"
+                          onClick={() => closeSectionEng(sec.id)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 hover:border-red-300 rounded-lg text-xs font-semibold transition-colors"
+                        >
+                          <FiTrash2 className="w-3.5 h-3.5" />
+                          이 섹션 영문 제거
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => openSectionEng(sec.id)}
+                          className="w-full flex items-center justify-center gap-2 py-2 border-2 border-dashed border-blue-300 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:border-blue-500 rounded text-sm font-semibold transition-colors"
+                        >
+                          <FiPlus className="w-4 h-4" />
+                          이 섹션에 영문 추가
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )}
 
                 {/* 🌟 3. BUTTON 타입 렌더링 */}
                 {sec.type === "BUTTON" && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-lg">
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-500 mb-1">
-                        버튼에 표시될 문구
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="버튼 텍스트 입력"
-                        value={sec.buttonTitle}
-                        onChange={(e) =>
-                          setSections(
-                            sections.map((s) =>
-                              s.id === sec.id
-                                ? { ...s, buttonTitle: e.target.value }
-                                : s,
-                            ),
-                          )
-                        }
-                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-slate-800 text-slate-900"
-                      />
+                  <div className="space-y-3 bg-slate-50 p-4 rounded-lg">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-500 mb-1">
+                          버튼에 표시될 문구 {sec.showEng && <span className="text-slate-400 font-normal">(한글)</span>}
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="버튼 텍스트 입력"
+                          value={sec.buttonTitle}
+                          onChange={(e) =>
+                            setSections(
+                              sections.map((s) =>
+                                s.id === sec.id
+                                  ? { ...s, buttonTitle: e.target.value }
+                                  : s,
+                              ),
+                            )
+                          }
+                          className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-slate-800 text-slate-900"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-500 mb-1">
+                          클릭 시 이동할 URL
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="https://..."
+                          value={sec.buttonUrl}
+                          onChange={(e) =>
+                            setSections(
+                              sections.map((s) =>
+                                s.id === sec.id
+                                  ? { ...s, buttonUrl: e.target.value }
+                                  : s,
+                              ),
+                            )
+                          }
+                          className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-slate-800 text-slate-900"
+                        />
+                      </div>
                     </div>
+                    {sec.showEng && (
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-500 mb-1">
+                          Button Text <span className="text-slate-400 font-normal">(English, 선택)</span>
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Learn More"
+                          value={sec.engButtonTitle}
+                          onChange={(e) =>
+                            setSections(
+                              sections.map((s) =>
+                                s.id === sec.id
+                                  ? { ...s, engButtonTitle: e.target.value }
+                                  : s,
+                              ),
+                            )
+                          }
+                          className="w-full px-4 py-2 border border-slate-200 bg-white rounded-lg focus:ring-2 focus:ring-slate-800 text-slate-900"
+                        />
+                      </div>
+                    )}
+
+                    {/* 🌐 섹션 영문 토글 (BUTTON) */}
                     <div>
-                      <label className="block text-xs font-semibold text-slate-500 mb-1">
-                        클릭 시 이동할 URL
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="https://..."
-                        value={sec.buttonUrl}
-                        onChange={(e) =>
-                          setSections(
-                            sections.map((s) =>
-                              s.id === sec.id
-                                ? { ...s, buttonUrl: e.target.value }
-                                : s,
-                            ),
-                          )
-                        }
-                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-slate-800 text-slate-900"
-                      />
+                      {sec.showEng ? (
+                        <button
+                          type="button"
+                          onClick={() => closeSectionEng(sec.id)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 hover:border-red-300 rounded-lg text-xs font-semibold transition-colors"
+                        >
+                          <FiTrash2 className="w-3.5 h-3.5" />
+                          이 버튼 영문 제거
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => openSectionEng(sec.id)}
+                          className="w-full flex items-center justify-center gap-2 py-2 border-2 border-dashed border-blue-300 bg-white text-blue-600 hover:bg-blue-50 hover:border-blue-500 rounded text-sm font-semibold transition-colors"
+                        >
+                          <FiPlus className="w-4 h-4" />
+                          이 버튼에 영문 추가
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}
@@ -727,13 +1070,53 @@ function RegisterDeviceForm() {
               <br />
               예: &quot;UTH-170 Series&quot;, &quot;URC-02 Series&quot;
             </p>
-            <input
-              type="text"
-              placeholder="시리즈명 입력 (예: UTH-170 Series)"
-              value={seriesName}
-              onChange={(e) => setSeriesName(e.target.value)}
-              className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900"
-            />
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-1">
+                시리즈명 {showEngHeader && <span className="text-slate-400 font-normal">(한글)</span>}
+              </label>
+              <input
+                type="text"
+                placeholder="시리즈명 입력 (예: UTH-170 Series)"
+                value={seriesName}
+                onChange={(e) => setSeriesName(e.target.value)}
+                className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900"
+              />
+            </div>
+            {showEngHeader && (
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 mb-1">
+                  Series Name <span className="text-slate-400 font-normal">(English, 선택)</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. UTH-170 Series"
+                  value={engSeriesName}
+                  onChange={(e) => setEngSeriesName(e.target.value)}
+                  className="w-full px-4 py-3 border border-slate-200 bg-slate-50 rounded-lg focus:ring-2 focus:ring-blue-500 focus:bg-white text-slate-900"
+                />
+              </div>
+            )}
+
+            {/* 🌐 헤더(썸네일+시리즈명) 영문 토글 버튼 */}
+            {showEngHeader ? (
+              <button
+                type="button"
+                onClick={closeHeaderEng}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 hover:border-red-300 rounded-lg text-xs font-semibold transition-colors w-fit"
+              >
+                <FiTrash2 className="w-3.5 h-3.5" />
+                썸네일/시리즈명 영문 입력 제거
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={openHeaderEng}
+                className="w-full flex items-center justify-center gap-2 py-2.5 border-2 border-dashed border-blue-300 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:border-blue-500 rounded-lg text-sm font-semibold transition-colors"
+              >
+                <FiPlus className="w-4 h-4" />
+                썸네일/시리즈명 영문(English) 입력 추가하기
+              </button>
+            )}
           </div>
 
           <div>
@@ -795,82 +1178,104 @@ function RegisterDeviceForm() {
                       />
                     )}
                   </div>
-                  <div className="w-full md:w-2/3 grid grid-cols-2 gap-3">
-                    <input
-                      type="text"
-                      placeholder="타이틀"
-                      value={rel.title}
-                      onChange={(e) =>
-                        setRelatedProducts(
-                          relatedProducts.map((r) =>
-                            r.id === rel.id
-                              ? { ...r, title: e.target.value }
-                              : r,
-                          ),
-                        )
-                      }
-                      className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900 col-span-2"
-                    />
-                    <input
-                      type="text"
-                      placeholder="설명 1"
-                      value={rel.desc1}
-                      onChange={(e) =>
-                        setRelatedProducts(
-                          relatedProducts.map((r) =>
-                            r.id === rel.id
-                              ? { ...r, desc1: e.target.value }
-                              : r,
-                          ),
-                        )
-                      }
-                      className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900"
-                    />
-                    <input
-                      type="text"
-                      placeholder="설명 2"
-                      value={rel.desc2}
-                      onChange={(e) =>
-                        setRelatedProducts(
-                          relatedProducts.map((r) =>
-                            r.id === rel.id
-                              ? { ...r, desc2: e.target.value }
-                              : r,
-                          ),
-                        )
-                      }
-                      className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900"
-                    />
-                    <input
-                      type="text"
-                      placeholder="설명 3"
-                      value={rel.desc3}
-                      onChange={(e) =>
-                        setRelatedProducts(
-                          relatedProducts.map((r) =>
-                            r.id === rel.id
-                              ? { ...r, desc3: e.target.value }
-                              : r,
-                          ),
-                        )
-                      }
-                      className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900"
-                    />
-                    <input
-                      type="text"
-                      placeholder="설명 4"
-                      value={rel.desc4}
-                      onChange={(e) =>
-                        setRelatedProducts(
-                          relatedProducts.map((r) =>
-                            r.id === rel.id
-                              ? { ...r, desc4: e.target.value }
-                              : r,
-                          ),
-                        )
-                      }
-                      className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900"
-                    />
+                  <div className="w-full md:w-2/3 space-y-2">
+                    <div className="grid grid-cols-2 gap-3">
+                      <input
+                        type="text"
+                        placeholder={rel.showEng ? "타이틀 (한글)" : "타이틀"}
+                        value={rel.title}
+                        onChange={(e) =>
+                          setRelatedProducts(
+                            relatedProducts.map((r) =>
+                              r.id === rel.id
+                                ? { ...r, title: e.target.value }
+                                : r,
+                            ),
+                          )
+                        }
+                        className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900 col-span-2"
+                      />
+                      {rel.showEng && (
+                        <input
+                          type="text"
+                          placeholder="Title (English, 선택)"
+                          value={rel.engTitle}
+                          onChange={(e) =>
+                            setRelatedProducts(
+                              relatedProducts.map((r) =>
+                                r.id === rel.id
+                                  ? { ...r, engTitle: e.target.value }
+                                  : r,
+                              ),
+                            )
+                          }
+                          className="px-3 py-2 border border-slate-200 bg-white rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900 col-span-2 text-sm"
+                        />
+                      )}
+                      {[1, 2, 3, 4].map((n) => {
+                        const koKey = `desc${n}` as "desc1" | "desc2" | "desc3" | "desc4";
+                        const enKey = `engDesc${n}` as "engDesc1" | "engDesc2" | "engDesc3" | "engDesc4";
+                        return (
+                          <div key={n} className="space-y-1">
+                            <input
+                              type="text"
+                              placeholder={rel.showEng ? `설명 ${n} (한글)` : `설명 ${n}`}
+                              value={rel[koKey]}
+                              onChange={(e) =>
+                                setRelatedProducts(
+                                  relatedProducts.map((r) =>
+                                    r.id === rel.id
+                                      ? { ...r, [koKey]: e.target.value }
+                                      : r,
+                                  ),
+                                )
+                              }
+                              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900"
+                            />
+                            {rel.showEng && (
+                              <input
+                                type="text"
+                                placeholder={`Desc ${n} (English, 선택)`}
+                                value={rel[enKey]}
+                                onChange={(e) =>
+                                  setRelatedProducts(
+                                    relatedProducts.map((r) =>
+                                      r.id === rel.id
+                                        ? { ...r, [enKey]: e.target.value }
+                                        : r,
+                                    ),
+                                  )
+                                }
+                                className="w-full px-3 py-2 border border-slate-200 bg-white rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900 text-sm"
+                              />
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* 🌐 연관 제품 영문 토글 */}
+                    <div className="pt-1">
+                      {rel.showEng ? (
+                        <button
+                          type="button"
+                          onClick={() => closeRelatedEng(rel.id)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 hover:border-red-300 rounded-lg text-xs font-semibold transition-colors"
+                        >
+                          <FiTrash2 className="w-3.5 h-3.5" />
+                          이 연관 제품 영문 제거
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => openRelatedEng(rel.id)}
+                          className="w-full flex items-center justify-center gap-2 py-2 border-2 border-dashed border-blue-300 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:border-blue-500 rounded text-sm font-semibold transition-colors"
+                        >
+                          <FiPlus className="w-4 h-4" />
+                          이 연관 제품에 영문 추가
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
