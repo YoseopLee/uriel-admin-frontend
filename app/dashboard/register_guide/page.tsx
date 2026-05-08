@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react";
 import { fetchAuthSession } from "aws-amplify/auth";
-import { FiTrash2, FiEdit2, FiX, FiFileText } from "react-icons/fi";
+import { FiTrash2, FiEdit2, FiX, FiFileText, FiPlus } from "react-icons/fi";
 import { uploadImageToS3 } from "@/utils/uploadImage"; // PDF도 이 함수로 업로드 가능
 
 export default function RegisterGuidePage() {
@@ -13,6 +13,8 @@ export default function RegisterGuidePage() {
   // 폼 상태
   const [mainCategory, setMainCategory] = useState("");
   const [title, setTitle] = useState("");
+  const [engTitle, setEngTitle] = useState(""); // 🌐 영문 (옵셔널)
+  const [showEng, setShowEng] = useState(false);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [pdfUrl, setPdfUrl] = useState(""); // 기존 등록된 PDF 주소 (수정용)
   const [linkUrl, setLinkUrl] = useState("");
@@ -20,6 +22,17 @@ export default function RegisterGuidePage() {
 
   const [editId, setEditId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  // 🌐 영문 입력 토글
+  const openEng = () => setShowEng(true);
+  const closeEng = () => {
+    if (engTitle &&
+      !window.confirm("입력한 영문 내용을 비우고 영문 칸을 닫으시겠습니까?")) {
+      return;
+    }
+    setEngTitle("");
+    setShowEng(false);
+  };
 
   // 페이지네이션 상태
   const [nextPageKey, setNextPageKey] = useState<string | null>(null);
@@ -83,6 +96,7 @@ export default function RegisterGuidePage() {
       const payload = {
         main_category: mainCategory,
         title,
+        eng_title: engTitle, // 🌐 영문 (빈 문자열 허용)
         pdf_url: uploadedPdfUrl,
         link_url: linkUrl,
         video_url: videoUrl,
@@ -116,6 +130,10 @@ export default function RegisterGuidePage() {
     setEditId(guide.id);
     setMainCategory(guide.main_category);
     setTitle(guide.title);
+    // 🌐 영문 데이터 있으면 자동 펼침
+    const et = guide.eng_title || "";
+    setEngTitle(et);
+    setShowEng(!!et);
     setPdfUrl(guide.pdf_url || "");
     setLinkUrl(guide.link_url || "");
     setVideoUrl(guide.video_url || "");
@@ -141,6 +159,8 @@ export default function RegisterGuidePage() {
   const resetForm = () => {
     setEditId(null);
     setTitle("");
+    setEngTitle("");
+    setShowEng(false);
     setPdfFile(null);
     setPdfUrl("");
     setLinkUrl("");
@@ -186,7 +206,7 @@ export default function RegisterGuidePage() {
             </div>
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-2">
-                가이드 제목
+                가이드 제목 {showEng && <span className="text-slate-400 font-normal">(한글)</span>}
               </label>
               <input
                 type="text"
@@ -198,6 +218,43 @@ export default function RegisterGuidePage() {
               />
             </div>
           </div>
+
+          {/* 🌐 영문 제목 (옵셔널) */}
+          {showEng && (
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">
+                Title <span className="text-slate-400 font-normal">(English, 선택)</span>
+              </label>
+              <input
+                type="text"
+                value={engTitle}
+                onChange={(e) => setEngTitle(e.target.value)}
+                placeholder="e.g. URC-02 System Guide (ENG)"
+                className="w-full px-4 py-2 border border-slate-200 bg-slate-50 rounded-lg focus:ring-2 focus:ring-blue-500 focus:bg-white text-slate-900"
+              />
+            </div>
+          )}
+
+          {/* 🌐 영문 추가/제거 버튼 */}
+          {showEng ? (
+            <button
+              type="button"
+              onClick={closeEng}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 hover:border-red-300 rounded-lg text-xs font-semibold transition-colors"
+            >
+              <FiTrash2 className="w-3.5 h-3.5" />
+              영문 입력 제거
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={openEng}
+              className="w-full flex items-center justify-center gap-2 py-2.5 border-2 border-dashed border-blue-300 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:border-blue-500 rounded-lg text-sm font-semibold transition-colors"
+            >
+              <FiPlus className="w-4 h-4" />
+              영문(English) 입력 추가하기
+            </button>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50 p-4 rounded-lg">
             <div>
