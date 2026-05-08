@@ -14,6 +14,23 @@ import {
   FiPlus,
 } from "react-icons/fi";
 import { uploadImageToS3 } from "@/utils/uploadImage";
+// 🌟 D&D
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { SortableItem } from "@/components/SortableItem";
 
 type SectionType = "IMAGE" | "TEXT";
 
@@ -125,6 +142,28 @@ export default function RegisterLoungePage() {
     } catch (err) {
       console.error("라운지 목록 fetch 에러:", err);
     }
+  };
+
+  // 🌟 D&D sensors + handlers
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+  const handleSectionDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = sections.findIndex((s) => s.id === active.id);
+    const newIndex = sections.findIndex((s) => s.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    setSections(arrayMove(sections, oldIndex, newIndex));
+  };
+  const handleAttachmentDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = attachments.findIndex((a) => a.id === active.id);
+    const newIndex = attachments.findIndex((a) => a.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    setAttachments(arrayMove(attachments, oldIndex, newIndex));
   };
 
   // --- 섹션 빌더 핸들러 ---
@@ -454,14 +493,25 @@ export default function RegisterLoungePage() {
                   첨부된 파일이 없습니다.
                 </p>
               )}
-              {attachments.map((att) => (
-                <div
-                  key={att.id}
-                  className="bg-slate-50 border border-slate-200 rounded px-3 py-2 space-y-2"
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleAttachmentDragEnd}
+              >
+                <SortableContext
+                  items={attachments.map((a) => a.id)}
+                  strategy={verticalListSortingStrategy}
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-sm text-slate-700 truncate">
-                      <FiPaperclip className="shrink-0" />
+              {attachments.map((att) => (
+                <SortableItem
+                  key={att.id}
+                  id={att.id}
+                  handleClassName="cursor-grab active:cursor-grabbing p-1.5 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 touch-none flex-shrink-0"
+                  className="bg-slate-50 border border-slate-200 rounded px-3 py-2 space-y-2 mb-2"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 text-sm text-slate-700 truncate flex-1">
+                      <FiPaperclip className="shrink-0 ml-7" />
                       {att.url ? (
                         <a
                           href={att.url}
@@ -478,7 +528,7 @@ export default function RegisterLoungePage() {
                     <button
                       type="button"
                       onClick={() => removeAttachment(att.id)}
-                      className="text-slate-400 hover:text-red-500"
+                      className="text-slate-400 hover:text-red-500 z-10"
                     >
                       <FiTrash2 />
                     </button>
@@ -495,8 +545,10 @@ export default function RegisterLoungePage() {
                       className="w-full px-3 py-1.5 border border-slate-200 bg-white rounded text-xs text-slate-900 focus:ring-1 focus:ring-blue-500"
                     />
                   )}
-                </div>
+                </SortableItem>
               ))}
+                </SortableContext>
+              </DndContext>
             </div>
           </div>
 
@@ -529,15 +581,26 @@ export default function RegisterLoungePage() {
                   장을 올리면 carousel 형식으로 노출됩니다.)
                 </div>
               )}
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleSectionDragEnd}
+              >
+                <SortableContext
+                  items={sections.map((s) => s.id)}
+                  strategy={verticalListSortingStrategy}
+                >
               {sections.map((sec) => (
-                <div
+                <SortableItem
                   key={sec.id}
-                  className="relative bg-slate-50 border p-4 rounded-lg"
+                  id={sec.id}
+                  handleClassName="absolute top-3 left-3 z-10 cursor-grab active:cursor-grabbing p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 touch-none"
+                  className="bg-slate-50 border p-4 pl-12 rounded-lg mb-4"
                 >
                   <button
                     type="button"
                     onClick={() => removeSection(sec.id)}
-                    className="absolute top-4 right-4 text-slate-400 hover:text-red-500"
+                    className="absolute top-4 right-4 text-slate-400 hover:text-red-500 z-10"
                   >
                     <FiTrash2 />
                   </button>
@@ -706,8 +769,10 @@ export default function RegisterLoungePage() {
                       </div>
                     </div>
                   )}
-                </div>
+                </SortableItem>
               ))}
+                </SortableContext>
+              </DndContext>
             </div>
           </div>
 

@@ -13,6 +13,23 @@ import {
   FiPlus,
 } from "react-icons/fi";
 import { uploadImageToS3 } from "@/utils/uploadImage";
+// 🌟 D&D
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { SortableItem } from "@/components/SortableItem";
 
 type SectionType = "IMAGE" | "TEXT" | "BUTTON";
 
@@ -116,6 +133,20 @@ export default function RegisterBlogPage() {
     } catch (err) {
       console.error(err);
     }
+  };
+
+  // 🌟 D&D sensors + handler
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = sections.findIndex((s) => s.id === active.id);
+    const newIndex = sections.findIndex((s) => s.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    setSections(arrayMove(sections, oldIndex, newIndex));
   };
 
   // --- 본문 섹션 빌더 핸들러 ---
@@ -451,16 +482,27 @@ export default function RegisterBlogPage() {
               </div>
             </div>
 
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={sections.map((s) => s.id)}
+                strategy={verticalListSortingStrategy}
+              >
             <div className="space-y-4">
               {sections.map((sec, index) => (
-                <div
+                <SortableItem
                   key={sec.id}
-                  className="relative bg-slate-50 border p-4 rounded-lg"
+                  id={sec.id}
+                  handleClassName="absolute top-3 left-3 z-10 cursor-grab active:cursor-grabbing p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 touch-none"
+                  className="bg-slate-50 border p-4 pl-12 rounded-lg"
                 >
                   <button
                     type="button"
                     onClick={() => removeSection(sec.id)}
-                    className="absolute top-4 right-4 text-slate-400 hover:text-red-500"
+                    className="absolute top-4 right-4 text-slate-400 hover:text-red-500 z-10"
                   >
                     <FiTrash2 />
                   </button>
@@ -629,9 +671,11 @@ export default function RegisterBlogPage() {
                       </div>
                     </div>
                   )}
-                </div>
+                </SortableItem>
               ))}
             </div>
+              </SortableContext>
+            </DndContext>
           </div>
 
           <button

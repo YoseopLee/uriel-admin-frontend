@@ -6,6 +6,23 @@ import { useSearchParams, useRouter } from "next/navigation"; // 🌟 URL 파라
 import { FiPlus, FiTrash2, FiImage, FiType, FiLink2 } from "react-icons/fi";
 import { uploadImageToS3 } from "@/utils/uploadImage";
 import { fetchAuthSession } from "aws-amplify/auth";
+// 🌟 D&D
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { SortableItem } from "@/components/SortableItem";
 
 type SectionType = "IMAGE" | "TEXT" | "BUTTON";
 
@@ -314,6 +331,28 @@ function RegisterDeviceForm() {
     } else {
       setSelectedSubCategories([...selectedSubCategories, sub]);
     }
+  };
+
+  // 🌟 D&D sensors + handlers (sections, related_products 공통)
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+  const handleSectionDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = sections.findIndex((s) => s.id === active.id);
+    const newIndex = sections.findIndex((s) => s.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    setSections(arrayMove(sections, oldIndex, newIndex));
+  };
+  const handleRelatedDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = relatedProducts.findIndex((r) => r.id === active.id);
+    const newIndex = relatedProducts.findIndex((r) => r.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    setRelatedProducts(arrayMove(relatedProducts, oldIndex, newIndex));
   };
 
   const addSection = (type: SectionType) =>
@@ -709,15 +748,26 @@ function RegisterDeviceForm() {
               </div>
             )}
 
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleSectionDragEnd}
+            >
+              <SortableContext
+                items={sections.map((s) => s.id)}
+                strategy={verticalListSortingStrategy}
+              >
             {sections.map((sec, index) => (
-              <div
+              <SortableItem
                 key={sec.id}
-                className="relative bg-white border border-slate-200 p-6 rounded-lg shadow-sm"
+                id={sec.id}
+                handleClassName="absolute top-4 left-4 z-10 cursor-grab active:cursor-grabbing p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 touch-none"
+                className="bg-white border border-slate-200 p-6 pl-14 rounded-lg shadow-sm mb-6"
               >
                 <button
                   type="button"
                   onClick={() => removeSection(sec.id)}
-                  className="absolute top-4 right-4 text-slate-400 hover:text-red-500 transition-colors"
+                  className="absolute top-4 right-4 text-slate-400 hover:text-red-500 transition-colors z-10"
                 >
                   <FiTrash2 size={20} />
                 </button>
@@ -1027,8 +1077,10 @@ function RegisterDeviceForm() {
                     </div>
                   </div>
                 )}
-              </div>
+              </SortableItem>
             ))}
+              </SortableContext>
+            </DndContext>
           </div>
         </section>
 
@@ -1133,16 +1185,27 @@ function RegisterDeviceForm() {
               </button>
             </div>
 
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleRelatedDragEnd}
+            >
+              <SortableContext
+                items={relatedProducts.map((r) => r.id)}
+                strategy={verticalListSortingStrategy}
+              >
             <div className="space-y-4">
               {relatedProducts.map((rel, index) => (
-                <div
+                <SortableItem
                   key={rel.id}
-                  className="flex flex-col md:flex-row gap-6 border border-slate-200 p-6 rounded-lg bg-slate-50 relative shadow-sm"
+                  id={rel.id}
+                  handleClassName="absolute top-4 left-4 z-10 cursor-grab active:cursor-grabbing p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 touch-none"
+                  className="flex flex-col md:flex-row gap-6 border border-slate-200 p-6 pl-14 rounded-lg bg-slate-50 shadow-sm"
                 >
                   <button
                     type="button"
                     onClick={() => removeRelated(rel.id)}
-                    className="absolute top-4 right-4 text-red-500 hover:text-red-700"
+                    className="absolute top-4 right-4 text-red-500 hover:text-red-700 z-10"
                   >
                     <FiTrash2 size={18} />
                   </button>
@@ -1277,9 +1340,11 @@ function RegisterDeviceForm() {
                       )}
                     </div>
                   </div>
-                </div>
+                </SortableItem>
               ))}
             </div>
+              </SortableContext>
+            </DndContext>
           </div>
         </section>
 

@@ -5,6 +5,23 @@ import { useState, useEffect } from "react";
 import { fetchAuthSession } from "aws-amplify/auth";
 import { FiTrash2, FiPlus, FiInfo, FiArrowUp, FiArrowDown, FiImage } from "react-icons/fi";
 import { uploadImageToS3 } from "@/utils/uploadImage";
+// 🌟 D&D 라이브러리
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { SortableItem } from "@/components/SortableItem";
 
 // 🌟 회사 연혁 카드 1개 (가로로 나열되는 타임라인 항목)
 interface StoryItem {
@@ -171,6 +188,26 @@ export default function RegisterOurStoryPage() {
     setItems(newItems);
   };
 
+  // 🌟 D&D sensors (마우스/터치 + 키보드 접근성)
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 5 }, // 5px 이상 움직여야 드래그 시작 (오클릭 방지)
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
+
+  // 🌟 드래그 종료 시 순서 변경
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = items.findIndex((item) => item.id === active.id);
+    const newIndex = items.findIndex((item) => item.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    setItems(arrayMove(items, oldIndex, newIndex));
+  };
+
   // 🌟 연도/월 기반 자동 정렬 (asc: 오래된순, desc: 최신순)
   const sortByDate = (direction: "asc" | "desc") => {
     const label = direction === "desc" ? "최신순" : "오래된순";
@@ -310,54 +347,65 @@ export default function RegisterOurStoryPage() {
             </div>
           )}
 
-          {/* 카드 목록 (세로로 펼쳐서 편집, 실제 회사 홈페이지에서는 가로 배치됨) */}
-          <div className="space-y-4">
-            {items.map((item, index) => (
-              <div
-                key={item.id}
-                className="relative bg-slate-50 border border-slate-200 p-5 rounded-lg hover:border-slate-300 transition-colors"
-              >
-                {/* 헤더: 카드 순번 + 순서 이동 + 삭제 */}
-                <div className="flex justify-between items-center mb-4">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-white bg-slate-700 px-2 py-1 rounded">
-                      카드 #{index + 1}
-                    </span>
-                    {item.year && item.month && (
-                      <span className="text-xs text-slate-500">
-                        ({item.year}.{item.month.padStart(2, "0")})
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => moveItem(item.id, "up")}
-                      disabled={index === 0}
-                      className="text-slate-400 hover:text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed p-1"
-                      title="위로 (좌측으로)"
-                    >
-                      <FiArrowUp />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => moveItem(item.id, "down")}
-                      disabled={index === items.length - 1}
-                      className="text-slate-400 hover:text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed p-1"
-                      title="아래로 (우측으로)"
-                    >
-                      <FiArrowDown />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => removeItem(item.id)}
-                      className="text-slate-400 hover:text-red-500 p-1 ml-2"
-                      title="삭제"
-                    >
-                      <FiTrash2 />
-                    </button>
-                  </div>
-                </div>
+          {/* 🌟 카드 목록 (D&D + 위/아래 버튼 둘 다 지원) */}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={items.map((i) => i.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-4">
+                {items.map((item, index) => (
+                  <SortableItem
+                    key={item.id}
+                    id={item.id}
+                    handlePosition="top-left"
+                    className="bg-slate-50 border border-slate-200 p-5 pl-12 rounded-lg hover:border-slate-300 transition-colors"
+                  >
+                    {/* 헤더: 카드 순번 + 순서 이동 + 삭제 */}
+                    <div className="flex justify-between items-center mb-4">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-white bg-slate-700 px-2 py-1 rounded">
+                          카드 #{index + 1}
+                        </span>
+                        {item.year && item.month && (
+                          <span className="text-xs text-slate-500">
+                            ({item.year}.{item.month.padStart(2, "0")})
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => moveItem(item.id, "up")}
+                          disabled={index === 0}
+                          className="text-slate-400 hover:text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed p-1"
+                          title="위로 (좌측으로)"
+                        >
+                          <FiArrowUp />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveItem(item.id, "down")}
+                          disabled={index === items.length - 1}
+                          className="text-slate-400 hover:text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed p-1"
+                          title="아래로 (우측으로)"
+                        >
+                          <FiArrowDown />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeItem(item.id)}
+                          className="text-slate-400 hover:text-red-500 p-1 ml-2"
+                          title="삭제"
+                        >
+                          <FiTrash2 />
+                        </button>
+                      </div>
+                    </div>
 
                 {/* 본문: 좌측 입력 / 우측 카드 미리보기 */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -539,10 +587,12 @@ export default function RegisterOurStoryPage() {
                       </div>
                     </div>
                   </div>
-                </div>
+                  </div>
+                  </SortableItem>
+                ))}
               </div>
-            ))}
-          </div>
+            </SortableContext>
+          </DndContext>
 
           <button
             type="submit"

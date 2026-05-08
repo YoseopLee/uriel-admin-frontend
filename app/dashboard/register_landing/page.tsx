@@ -13,6 +13,23 @@ import {
 } from "react-icons/fi";
 import { uploadImageToS3 } from "@/utils/uploadImage";
 import { fetchAuthSession } from "aws-amplify/auth";
+// 🌟 D&D
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { SortableItem } from "@/components/SortableItem";
 
 // 🌟 개별 슬라이드 데이터 구조 (description, textColor 추가)
 interface SlideItem {
@@ -112,6 +129,37 @@ export default function RegisterLandingPage() {
     };
     loadExistingData();
   }, []);
+
+  // 🌟 D&D sensors (캐러셀 섹션, 슬라이드 모두 공통 사용)
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  // 🌟 캐러셀 섹션 순서 변경
+  const handleSectionDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = carousels.findIndex((c) => c.id === active.id);
+    const newIndex = carousels.findIndex((c) => c.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    setCarousels(arrayMove(carousels, oldIndex, newIndex));
+  };
+
+  // 🌟 슬라이드 순서 변경 (특정 캐러셀 안)
+  const handleSlideDragEnd = (carouselId: number, event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    setCarousels(
+      carousels.map((c) => {
+        if (c.id !== carouselId) return c;
+        const oldIndex = c.slides.findIndex((s) => s.id === active.id);
+        const newIndex = c.slides.findIndex((s) => s.id === over.id);
+        if (oldIndex === -1 || newIndex === -1) return c;
+        return { ...c, slides: arrayMove(c.slides, oldIndex, newIndex) };
+      }),
+    );
+  };
 
   // --- 캐러셀 섹션 핸들러 ---
   const addCarouselSection = () => {
@@ -372,10 +420,22 @@ export default function RegisterLandingPage() {
           </div>
         )}
 
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleSectionDragEnd}
+        >
+          <SortableContext
+            items={carousels.map((c) => c.id)}
+            strategy={verticalListSortingStrategy}
+          >
         {carousels.map((carousel, cIndex) => (
-          <section
+          <SortableItem
             key={carousel.id}
-            className="bg-slate-50 p-6 rounded-xl border border-slate-200 relative shadow-sm"
+            id={carousel.id}
+            handlePosition="top-left"
+            handleClassName="absolute top-6 left-6 z-10 cursor-grab active:cursor-grabbing p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 touch-none"
+            className="bg-slate-50 p-6 pl-14 rounded-xl border border-slate-200 shadow-sm"
           >
             <button
               type="button"
@@ -416,15 +476,26 @@ export default function RegisterLandingPage() {
                 </p>
               )}
 
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={(e) => handleSlideDragEnd(carousel.id, e)}
+              >
+                <SortableContext
+                  items={carousel.slides.map((s) => s.id)}
+                  strategy={verticalListSortingStrategy}
+                >
               {carousel.slides.map((slide, sIndex) => (
-                <div
+                <SortableItem
                   key={slide.id}
-                  className="relative bg-white p-5 rounded-lg border border-slate-200 shadow-sm flex flex-col lg:flex-row gap-6 items-start"
+                  id={slide.id}
+                  handleClassName="absolute top-3 left-3 z-10 cursor-grab active:cursor-grabbing p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 touch-none"
+                  className="bg-white p-5 pl-12 rounded-lg border border-slate-200 shadow-sm flex flex-col lg:flex-row gap-6 items-start"
                 >
                   <button
                     type="button"
                     onClick={() => removeSlide(carousel.id, slide.id)}
-                    className="absolute top-4 right-4 text-red-400 hover:text-red-600"
+                    className="absolute top-4 right-4 text-red-400 hover:text-red-600 z-10"
                   >
                     <FiTrash2 size={18} />
                   </button>
@@ -688,11 +759,15 @@ export default function RegisterLandingPage() {
                       )}
                     </div>
                   </div>
-                </div>
+                </SortableItem>
               ))}
+                </SortableContext>
+              </DndContext>
             </div>
-          </section>
+          </SortableItem>
         ))}
+          </SortableContext>
+        </DndContext>
 
         <button
           type="submit"
