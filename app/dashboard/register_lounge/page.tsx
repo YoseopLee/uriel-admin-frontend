@@ -11,6 +11,7 @@ import {
   FiType,
   FiPaperclip,
   FiStar,
+  FiPlus,
 } from "react-icons/fi";
 import { uploadImageToS3 } from "@/utils/uploadImage";
 
@@ -24,6 +25,11 @@ interface SectionData {
   title: string;
   subtitle: string;
   description: string;
+  // 🌐 영문 (옵셔널, TEXT 섹션에서만 사용)
+  engTitle: string;
+  engSubtitle: string;
+  engDescription: string;
+  showEng: boolean; // UI 전용
 }
 
 interface AttachmentItem {
@@ -31,6 +37,7 @@ interface AttachmentItem {
   file: File | null; // 새 파일
   name: string;
   url: string; // 기존 URL 또는 업로드 후 URL
+  engName: string; // 🌐 영문 (옵셔널)
 }
 
 export default function RegisterLoungePage() {
@@ -38,14 +45,59 @@ export default function RegisterLoungePage() {
 
   // 기본 정보
   const [title, setTitle] = useState("");
+  const [engTitle, setEngTitle] = useState(""); // 🌐 영문 (옵셔널)
   const [publishDate, setPublishDate] = useState("");
   const [isPinned, setIsPinned] = useState(false);
+
+  // 🌐 본문(헤더) 영문 토글 - 첨부파일 영문 이름과 연동
+  const [showEngHeader, setShowEngHeader] = useState(false);
 
   // 본문 섹션
   const [sections, setSections] = useState<SectionData[]>([]);
 
   // 첨부파일
   const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
+
+  // 🌐 본문/첨부파일 영문 토글
+  const openHeaderEng = () => setShowEngHeader(true);
+  const closeHeaderEng = () => {
+    const hasEng = !!engTitle || attachments.some((a) => a.engName);
+    if (hasEng &&
+      !window.confirm("입력한 본문/첨부파일 영문 내용을 비우시겠습니까?")) {
+      return;
+    }
+    setEngTitle("");
+    setAttachments(attachments.map((a) => ({ ...a, engName: "" })));
+    setShowEngHeader(false);
+  };
+
+  // 🌐 섹션별 영문 토글
+  const openSectionEng = (id: number) => {
+    setSections(sections.map((s) => (s.id === id ? { ...s, showEng: true } : s)));
+  };
+  const closeSectionEng = (id: number) => {
+    const target = sections.find((s) => s.id === id);
+    const hasEng =
+      !!(target?.engTitle || target?.engSubtitle || target?.engDescription);
+    if (hasEng &&
+      !window.confirm("이 섹션의 영문 내용을 비우시겠습니까?")) {
+      return;
+    }
+    setSections(
+      sections.map((s) =>
+        s.id === id
+          ? { ...s, engTitle: "", engSubtitle: "", engDescription: "", showEng: false }
+          : s,
+      ),
+    );
+  };
+
+  // 첨부파일 영문 이름 업데이트
+  const updateAttachmentEngName = (id: number, value: string) => {
+    setAttachments(
+      attachments.map((a) => (a.id === id ? { ...a, engName: value } : a)),
+    );
+  };
 
   const [editId, setEditId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -87,6 +139,10 @@ export default function RegisterLoungePage() {
         title: "",
         subtitle: "",
         description: "",
+        engTitle: "",
+        engSubtitle: "",
+        engDescription: "",
+        showEng: false,
       },
     ]);
   const removeSection = (id: number) =>
@@ -100,6 +156,7 @@ export default function RegisterLoungePage() {
       file: f,
       name: f.name,
       url: "",
+      engName: "", // 🌐 영문 이름 (옵셔널)
     }));
     setAttachments((prev) => [...prev, ...added]);
   };
@@ -132,25 +189,34 @@ export default function RegisterLoungePage() {
               title: sec.title,
               subtitle: sec.subtitle,
               description: sec.description,
+              // 🌐 영문 (옵셔널)
+              eng_title: sec.engTitle,
+              eng_subtitle: sec.engSubtitle,
+              eng_description: sec.engDescription,
             };
           }
         }),
       );
 
-      // 2. 첨부파일 처리
+      // 2. 첨부파일 처리 (🌐 eng_name 포함)
       const processedAttachments = await Promise.all(
         attachments.map(async (att) => {
+          let url = att.url;
           if (att.file) {
-            const url = await uploadImageToS3(att.file);
-            return { name: att.name, url };
+            url = await uploadImageToS3(att.file);
           }
-          return { name: att.name, url: att.url };
+          return {
+            name: att.name,
+            url,
+            eng_name: att.engName, // 🌐 영문 (빈 문자열 허용)
+          };
         }),
       );
 
       const payload = {
         is_pinned: isPinned,
         title,
+        eng_title: engTitle, // 🌐 본문 영문 (옵셔널)
         date: publishDate,
         attachments: processedAttachments,
         sections: processedSections,
@@ -183,35 +249,56 @@ export default function RegisterLoungePage() {
   const handleEditClick = (lounge: any) => {
     setEditId(lounge.id);
     setTitle(lounge.title || "");
+    const eTitle = lounge.eng_title || "";
+    setEngTitle(eTitle);
     setPublishDate(lounge.date || "");
     setIsPinned(!!lounge.is_pinned);
 
+    let restoredSections: SectionData[] = [];
     if (Array.isArray(lounge.sections)) {
-      const restored = lounge.sections.map((sec: any, idx: number) => ({
-        id: Date.now() + idx,
-        type: sec.type,
-        files: [],
-        previewUrls: sec.type === "IMAGE" ? sec.images || [] : [],
-        title: sec.title || "",
-        subtitle: sec.subtitle || "",
-        description: sec.description || "",
-      }));
-      setSections(restored);
+      restoredSections = lounge.sections.map((sec: any, idx: number) => {
+        const engT = sec.eng_title || "";
+        const engS = sec.eng_subtitle || "";
+        const engD = sec.eng_description || "";
+        return {
+          id: Date.now() + idx,
+          type: sec.type,
+          files: [],
+          previewUrls: sec.type === "IMAGE" ? sec.images || [] : [],
+          title: sec.title || "",
+          subtitle: sec.subtitle || "",
+          description: sec.description || "",
+          engTitle: engT,
+          engSubtitle: engS,
+          engDescription: engD,
+          // 🌐 영문 데이터 있으면 자동 펼침 (TEXT만)
+          showEng: sec.type === "TEXT" && !!(engT || engS || engD),
+        };
+      });
+      setSections(restoredSections);
     } else {
       setSections([]);
     }
 
+    let restoredAtts: AttachmentItem[] = [];
     if (Array.isArray(lounge.attachments)) {
-      const restoredAtts = lounge.attachments.map((a: any, idx: number) => ({
+      restoredAtts = lounge.attachments.map((a: any, idx: number) => ({
         id: Date.now() + idx + 1000,
         file: null,
         name: a.name || "",
         url: a.url || "",
+        engName: a.eng_name || "", // 🌐 영문 이름 로드
       }));
       setAttachments(restoredAtts);
     } else {
       setAttachments([]);
     }
+
+    // 🌐 본문/첨부파일 영문 데이터 있으면 헤더 토글 자동 펼침
+    setShowEngHeader(
+      !!eTitle || restoredAtts.some((a) => a.engName),
+    );
+
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -233,6 +320,8 @@ export default function RegisterLoungePage() {
   const resetForm = () => {
     setEditId(null);
     setTitle("");
+    setEngTitle("");
+    setShowEngHeader(false);
     setPublishDate("");
     setIsPinned(false);
     setSections([]);
@@ -276,14 +365,34 @@ export default function RegisterLoungePage() {
               </span>
             </label>
 
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="제목"
-              className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900"
-              required
-            />
+            <div>
+              <label className="block text-sm font-semibold mb-2 text-slate-700">
+                제목 {showEngHeader && <span className="text-slate-400 font-normal">(한글)</span>}
+              </label>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="제목"
+                className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900"
+                required
+              />
+            </div>
+
+            {showEngHeader && (
+              <div>
+                <label className="block text-sm font-semibold mb-2 text-slate-700">
+                  Title <span className="text-slate-400 font-normal">(English, 선택)</span>
+                </label>
+                <input
+                  type="text"
+                  value={engTitle}
+                  onChange={(e) => setEngTitle(e.target.value)}
+                  placeholder="Title in English"
+                  className="w-full px-4 py-3 border border-slate-200 bg-slate-50 rounded-lg focus:ring-2 focus:ring-blue-500 focus:bg-white text-slate-900"
+                />
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-semibold mb-2 text-slate-700">
@@ -297,6 +406,27 @@ export default function RegisterLoungePage() {
                 required
               />
             </div>
+
+            {/* 🌐 본문/첨부파일 영문 토글 버튼 */}
+            {showEngHeader ? (
+              <button
+                type="button"
+                onClick={closeHeaderEng}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 hover:border-red-300 rounded-lg text-xs font-semibold transition-colors w-fit"
+              >
+                <FiTrash2 className="w-3.5 h-3.5" />
+                본문/첨부파일 영문 입력 제거
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={openHeaderEng}
+                className="w-full flex items-center justify-center gap-2 py-2.5 border-2 border-dashed border-blue-300 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:border-blue-500 rounded-lg text-sm font-semibold transition-colors"
+              >
+                <FiPlus className="w-4 h-4" />
+                본문/첨부파일 영문(English) 입력 추가하기
+              </button>
+            )}
           </div>
 
           {/* 첨부파일 */}
@@ -327,30 +457,44 @@ export default function RegisterLoungePage() {
               {attachments.map((att) => (
                 <div
                   key={att.id}
-                  className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded px-3 py-2"
+                  className="bg-slate-50 border border-slate-200 rounded px-3 py-2 space-y-2"
                 >
-                  <div className="flex items-center gap-2 text-sm text-slate-700 truncate">
-                    <FiPaperclip className="shrink-0" />
-                    {att.url ? (
-                      <a
-                        href={att.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-blue-600 hover:underline truncate"
-                      >
-                        {att.name}
-                      </a>
-                    ) : (
-                      <span className="truncate">{att.name}</span>
-                    )}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-sm text-slate-700 truncate">
+                      <FiPaperclip className="shrink-0" />
+                      {att.url ? (
+                        <a
+                          href={att.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-blue-600 hover:underline truncate"
+                        >
+                          {att.name}
+                        </a>
+                      ) : (
+                        <span className="truncate">{att.name}</span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeAttachment(att.id)}
+                      className="text-slate-400 hover:text-red-500"
+                    >
+                      <FiTrash2 />
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => removeAttachment(att.id)}
-                    className="text-slate-400 hover:text-red-500"
-                  >
-                    <FiTrash2 />
-                  </button>
+                  {/* 🌐 영문 이름 입력 (본문 영문 토글 켜졌을 때만 표시) */}
+                  {showEngHeader && (
+                    <input
+                      type="text"
+                      value={att.engName}
+                      onChange={(e) =>
+                        updateAttachmentEngName(att.id, e.target.value)
+                      }
+                      placeholder="English file name (선택)"
+                      className="w-full px-3 py-1.5 border border-slate-200 bg-white rounded text-xs text-slate-900 focus:ring-1 focus:ring-blue-500"
+                    />
+                  )}
                 </div>
               ))}
             </div>
@@ -444,7 +588,7 @@ export default function RegisterLoungePage() {
                       <div className="flex gap-2">
                         <input
                           type="text"
-                          placeholder="소제목"
+                          placeholder={sec.showEng ? "소제목 (한글)" : "소제목"}
                           value={sec.title}
                           onChange={(e) =>
                             setSections(
@@ -459,7 +603,7 @@ export default function RegisterLoungePage() {
                         />
                         <input
                           type="text"
-                          placeholder="서브 부제목"
+                          placeholder={sec.showEng ? "서브 부제목 (한글)" : "서브 부제목"}
                           value={sec.subtitle}
                           onChange={(e) =>
                             setSections(
@@ -473,8 +617,42 @@ export default function RegisterLoungePage() {
                           className="w-1/2 p-2 border rounded text-slate-900"
                         />
                       </div>
+                      {sec.showEng && (
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            placeholder="Title (English, 선택)"
+                            value={sec.engTitle}
+                            onChange={(e) =>
+                              setSections(
+                                sections.map((s) =>
+                                  s.id === sec.id
+                                    ? { ...s, engTitle: e.target.value }
+                                    : s,
+                                ),
+                              )
+                            }
+                            className="w-1/2 p-2 border border-slate-200 bg-white rounded text-sm text-slate-900"
+                          />
+                          <input
+                            type="text"
+                            placeholder="Subtitle (English, 선택)"
+                            value={sec.engSubtitle}
+                            onChange={(e) =>
+                              setSections(
+                                sections.map((s) =>
+                                  s.id === sec.id
+                                    ? { ...s, engSubtitle: e.target.value }
+                                    : s,
+                                ),
+                              )
+                            }
+                            className="w-1/2 p-2 border border-slate-200 bg-white rounded text-sm text-slate-900"
+                          />
+                        </div>
+                      )}
                       <textarea
-                        placeholder="본문 내용"
+                        placeholder={sec.showEng ? "본문 내용 (한글)" : "본문 내용"}
                         value={sec.description}
                         onChange={(e) =>
                           setSections(
@@ -487,6 +665,45 @@ export default function RegisterLoungePage() {
                         }
                         className="w-full p-2 border rounded h-28 text-slate-900"
                       />
+                      {sec.showEng && (
+                        <textarea
+                          placeholder="Description (English, 선택)"
+                          value={sec.engDescription}
+                          onChange={(e) =>
+                            setSections(
+                              sections.map((s) =>
+                                s.id === sec.id
+                                  ? { ...s, engDescription: e.target.value }
+                                  : s,
+                              ),
+                            )
+                          }
+                          className="w-full p-2 border border-slate-200 bg-white rounded h-28 text-slate-900 text-sm"
+                        />
+                      )}
+
+                      {/* 🌐 섹션별 영문 토글 */}
+                      <div className="pt-1">
+                        {sec.showEng ? (
+                          <button
+                            type="button"
+                            onClick={() => closeSectionEng(sec.id)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 hover:border-red-300 rounded-lg text-xs font-semibold transition-colors"
+                          >
+                            <FiTrash2 className="w-3.5 h-3.5" />
+                            이 섹션 영문 제거
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => openSectionEng(sec.id)}
+                            className="w-full flex items-center justify-center gap-2 py-2 border-2 border-dashed border-blue-300 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:border-blue-500 rounded text-sm font-semibold transition-colors"
+                          >
+                            <FiPlus className="w-4 h-4" />
+                            이 섹션에 영문 추가
+                          </button>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>

@@ -24,6 +24,11 @@ interface SlideItem {
   description: string;
   linkUrl: string;
   textColor: string; // 🌟 슬라이드 텍스트 색상 (hex) - 이미지 위 텍스트 가독성을 위해 어드민이 직접 지정
+  // 🌐 영문 (옵셔널)
+  engTitle: string;
+  engSubtitle: string;
+  engDescription: string;
+  showEng: boolean; // UI 전용 (서버 저장 X)
 }
 
 interface CarouselSection {
@@ -75,16 +80,26 @@ export default function RegisterLandingPage() {
             (section: any, sIdx: number) => ({
               id: Date.now() + sIdx, // 고유 id 생성
               sectionTitle: section.section_title || "",
-              slides: (section.slides || []).map((slide: any, slIdx: number) => ({
-                id: Date.now() + sIdx * 1000 + slIdx, // 고유 id 생성
-                file: null, // 기존 데이터는 S3 URL만 있고 File 객체는 없음
-                previewUrl: slide.image_url || "",
-                title: slide.title || "",
-                subtitle: slide.subtitle || "",
-                description: slide.description || "",
-                linkUrl: slide.link_url || "",
-                textColor: slide.text_color || "#FFFFFF",
-              })),
+              slides: (section.slides || []).map((slide: any, slIdx: number) => {
+                const engTitle = slide.eng_title || "";
+                const engSubtitle = slide.eng_subtitle || "";
+                const engDescription = slide.eng_description || "";
+                return {
+                  id: Date.now() + sIdx * 1000 + slIdx, // 고유 id 생성
+                  file: null,
+                  previewUrl: slide.image_url || "",
+                  title: slide.title || "",
+                  subtitle: slide.subtitle || "",
+                  description: slide.description || "",
+                  linkUrl: slide.link_url || "",
+                  textColor: slide.text_color || "#FFFFFF",
+                  engTitle,
+                  engSubtitle,
+                  engDescription,
+                  // 🌐 영문 데이터 있으면 자동 펼침
+                  showEng: !!(engTitle || engSubtitle || engDescription),
+                };
+              }),
             }),
           );
           setCarousels(restoredCarousels);
@@ -127,7 +142,7 @@ export default function RegisterLandingPage() {
           }
           return {
             ...c,
-            // 🌟 새 슬라이드 추가 시 description, textColor 빈 값 추가
+            // 🌟 새 슬라이드 추가 시 description, textColor, 영문 빈 값 추가
             slides: [
               ...c.slides,
               {
@@ -138,7 +153,11 @@ export default function RegisterLandingPage() {
                 subtitle: "",
                 description: "",
                 linkUrl: "",
-                textColor: "#FFFFFF", // 기본값: 흰색
+                textColor: "#FFFFFF",
+                engTitle: "",
+                engSubtitle: "",
+                engDescription: "",
+                showEng: false,
               },
             ],
           };
@@ -171,6 +190,54 @@ export default function RegisterLandingPage() {
               ...c,
               slides: c.slides.map((s) =>
                 s.id === slideId ? { ...s, [field]: value } : s,
+              ),
+            }
+          : c,
+      ),
+    );
+  };
+
+  // 🌐 슬라이드 영문 입력 펼치기 / 닫기
+  const openSlideEng = (carouselId: number, slideId: number) => {
+    setCarousels(
+      carousels.map((c) =>
+        c.id === carouselId
+          ? {
+              ...c,
+              slides: c.slides.map((s) =>
+                s.id === slideId ? { ...s, showEng: true } : s,
+              ),
+            }
+          : c,
+      ),
+    );
+  };
+
+  const closeSlideEng = (carouselId: number, slideId: number) => {
+    const carousel = carousels.find((c) => c.id === carouselId);
+    const slide = carousel?.slides.find((s) => s.id === slideId);
+    const hasEngData = !!(
+      slide?.engTitle || slide?.engSubtitle || slide?.engDescription
+    );
+    if (hasEngData &&
+      !window.confirm("입력한 영문 내용을 비우고 영문 칸을 닫으시겠습니까?")) {
+      return;
+    }
+    setCarousels(
+      carousels.map((c) =>
+        c.id === carouselId
+          ? {
+              ...c,
+              slides: c.slides.map((s) =>
+                s.id === slideId
+                  ? {
+                      ...s,
+                      engTitle: "",
+                      engSubtitle: "",
+                      engDescription: "",
+                      showEng: false,
+                    }
+                  : s,
               ),
             }
           : c,
@@ -223,7 +290,11 @@ export default function RegisterLandingPage() {
                 description: slide.description,
                 link_url: slide.linkUrl,
                 image_url: s3Url || slide.previewUrl,
-                text_color: slide.textColor, // 🌟 텍스트 색상 (hex)
+                text_color: slide.textColor,
+                // 🌐 영문 (옵셔널, 빈 문자열 허용)
+                eng_title: slide.engTitle,
+                eng_subtitle: slide.engSubtitle,
+                eng_description: slide.engDescription,
               };
             }),
           );
@@ -385,7 +456,7 @@ export default function RegisterLandingPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div>
                         <label className="block text-xs font-semibold text-slate-500 mb-1">
-                          메인 타이틀 (Title)
+                          메인 타이틀 {slide.showEng && <span className="text-slate-400 font-normal">(한글)</span>}
                         </label>
                         <input
                           type="text"
@@ -404,7 +475,7 @@ export default function RegisterLandingPage() {
                       </div>
                       <div>
                         <label className="block text-xs font-semibold text-slate-500 mb-1">
-                          서브 타이틀 (Subtitle)
+                          서브 타이틀 {slide.showEng && <span className="text-slate-400 font-normal">(한글)</span>}
                         </label>
                         <input
                           type="text"
@@ -423,10 +494,54 @@ export default function RegisterLandingPage() {
                       </div>
                     </div>
 
+                    {/* 🌐 영문 메인/서브 타이틀 */}
+                    {slide.showEng && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-500 mb-1">
+                            Main Title <span className="text-slate-400 font-normal">(English, 선택)</span>
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="e.g. The Beginning of Innovation"
+                            value={slide.engTitle}
+                            onChange={(e) =>
+                              updateSlide(
+                                carousel.id,
+                                slide.id,
+                                "engTitle",
+                                e.target.value,
+                              )
+                            }
+                            className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-lg focus:ring-2 focus:ring-blue-500 focus:bg-white text-sm text-slate-900"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-500 mb-1">
+                            Subtitle <span className="text-slate-400 font-normal">(English, 선택)</span>
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="e.g. New Product Launch 2026"
+                            value={slide.engSubtitle}
+                            onChange={(e) =>
+                              updateSlide(
+                                carousel.id,
+                                slide.id,
+                                "engSubtitle",
+                                e.target.value,
+                              )
+                            }
+                            className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-lg focus:ring-2 focus:ring-blue-500 focus:bg-white text-sm text-slate-900"
+                          />
+                        </div>
+                      </div>
+                    )}
+
                     {/* 🌟 상세 설명(Description) 입력 칸 추가 */}
                     <div>
                       <label className="block text-xs font-semibold text-slate-500 mb-1 flex items-center">
-                        <FiAlignLeft className="mr-1" /> 상세 설명 (Description)
+                        <FiAlignLeft className="mr-1" /> 상세 설명 {slide.showEng && <span className="text-slate-400 font-normal ml-1">(한글)</span>}
                       </label>
                       <textarea
                         placeholder="슬라이드에 대한 자세한 설명을 입력하세요."
@@ -442,6 +557,28 @@ export default function RegisterLandingPage() {
                         className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm h-16 resize-none text-slate-900"
                       />
                     </div>
+
+                    {/* 🌐 영문 상세 설명 */}
+                    {slide.showEng && (
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-500 mb-1 flex items-center">
+                          <FiAlignLeft className="mr-1" /> Description <span className="text-slate-400 font-normal ml-1">(English, 선택)</span>
+                        </label>
+                        <textarea
+                          placeholder="Detailed description for this slide."
+                          value={slide.engDescription}
+                          onChange={(e) =>
+                            updateSlide(
+                              carousel.id,
+                              slide.id,
+                              "engDescription",
+                              e.target.value,
+                            )
+                          }
+                          className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-lg focus:ring-2 focus:ring-blue-500 focus:bg-white text-sm h-16 resize-none text-slate-900"
+                        />
+                      </div>
+                    )}
 
                     {/* 🌟 텍스트 색상 (단독 영역) */}
                     <div>
@@ -527,6 +664,29 @@ export default function RegisterLandingPage() {
                         </div>
                       </div>
                     )}
+
+                    {/* 🌐 영문 추가/제거 버튼 (슬라이드별) */}
+                    <div className="pt-1">
+                      {slide.showEng ? (
+                        <button
+                          type="button"
+                          onClick={() => closeSlideEng(carousel.id, slide.id)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 hover:border-red-300 rounded-lg text-xs font-semibold transition-colors"
+                        >
+                          <FiTrash2 className="w-3.5 h-3.5" />
+                          영문 입력 제거
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => openSlideEng(carousel.id, slide.id)}
+                          className="w-full flex items-center justify-center gap-2 py-2.5 border-2 border-dashed border-blue-300 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:border-blue-500 rounded-lg text-sm font-semibold transition-colors"
+                        >
+                          <FiPlus className="w-4 h-4" />
+                          영문(English) 입력 추가하기
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}

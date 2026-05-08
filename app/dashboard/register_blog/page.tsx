@@ -10,6 +10,7 @@ import {
   FiImage,
   FiType,
   FiLink2,
+  FiPlus,
 } from "react-icons/fi";
 import { uploadImageToS3 } from "@/utils/uploadImage";
 
@@ -25,6 +26,12 @@ interface SectionData {
   description: string;
   buttonTitle: string;
   buttonUrl: string;
+  // 🌐 영문 (옵셔널)
+  engTitle: string;
+  engSubtitle: string;
+  engDescription: string;
+  engButtonTitle: string;
+  showEng: boolean; // UI 전용
 }
 
 export default function RegisterBlogPage() {
@@ -39,6 +46,11 @@ export default function RegisterBlogPage() {
     previewUrl: "",
   });
 
+  // 🌐 본문 영문 (옵셔널)
+  const [engTitle, setEngTitle] = useState("");
+  const [engSubtitle, setEngSubtitle] = useState("");
+  const [showEngHeader, setShowEngHeader] = useState(false);
+
   // 🌟 블로그 본문 (섹션 빌더)
   const [sections, setSections] = useState<SectionData[]>([]);
 
@@ -46,6 +58,46 @@ export default function RegisterBlogPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [nextPageKey, setNextPageKey] = useState<string | null>(null);
   const [hasNextPage, setHasNextPage] = useState(false);
+
+  // 🌐 본문 영문 토글
+  const openHeaderEng = () => setShowEngHeader(true);
+  const closeHeaderEng = () => {
+    if ((engTitle || engSubtitle) &&
+      !window.confirm("입력한 본문 영문 내용을 비우시겠습니까?")) {
+      return;
+    }
+    setEngTitle("");
+    setEngSubtitle("");
+    setShowEngHeader(false);
+  };
+
+  // 🌐 섹션별 영문 토글
+  const openSectionEng = (id: number) => {
+    setSections(sections.map((s) => (s.id === id ? { ...s, showEng: true } : s)));
+  };
+  const closeSectionEng = (id: number) => {
+    const target = sections.find((s) => s.id === id);
+    const hasEng =
+      !!(target?.engTitle || target?.engSubtitle || target?.engDescription || target?.engButtonTitle);
+    if (hasEng &&
+      !window.confirm("이 섹션의 영문 내용을 비우시겠습니까?")) {
+      return;
+    }
+    setSections(
+      sections.map((s) =>
+        s.id === id
+          ? {
+              ...s,
+              engTitle: "",
+              engSubtitle: "",
+              engDescription: "",
+              engButtonTitle: "",
+              showEng: false,
+            }
+          : s,
+      ),
+    );
+  };
 
   useEffect(() => {
     fetchBlogs();
@@ -80,6 +132,11 @@ export default function RegisterBlogPage() {
         description: "",
         buttonTitle: "",
         buttonUrl: "",
+        engTitle: "",
+        engSubtitle: "",
+        engDescription: "",
+        engButtonTitle: "",
+        showEng: false,
       },
     ]);
   const removeSection = (id: number) =>
@@ -115,12 +172,17 @@ export default function RegisterBlogPage() {
               title: sec.title,
               subtitle: sec.subtitle,
               description: sec.description,
+              // 🌐 영문 (옵셔널)
+              eng_title: sec.engTitle,
+              eng_subtitle: sec.engSubtitle,
+              eng_description: sec.engDescription,
             };
           } else if (sec.type === "BUTTON") {
             return {
               type: "BUTTON",
               title: sec.buttonTitle,
               link_url: sec.buttonUrl,
+              eng_title: sec.engButtonTitle, // 🌐
             };
           }
         }),
@@ -132,6 +194,9 @@ export default function RegisterBlogPage() {
         date: publishDate,
         thumbnail: uploadedThumb,
         sections: processedSections,
+        // 🌐 본문 영문 (옵셔널)
+        eng_title: engTitle,
+        eng_subtitle: engSubtitle,
       };
 
       const url = editId
@@ -164,18 +229,40 @@ export default function RegisterBlogPage() {
     setPublishDate(blog.date || "");
     setThumbnail({ file: null, previewUrl: blog.thumbnail || "" });
 
+    // 🌐 본문 영문 데이터 로드
+    const eTitle = blog.eng_title || "";
+    const eSubtitle = blog.eng_subtitle || "";
+    setEngTitle(eTitle);
+    setEngSubtitle(eSubtitle);
+    setShowEngHeader(!!(eTitle || eSubtitle));
+
     if (blog.sections) {
-      const restored = blog.sections.map((sec: any, idx: number) => ({
-        id: Date.now() + idx,
-        type: sec.type,
-        files: [],
-        previewUrls: sec.type === "IMAGE" ? sec.images || [] : [],
-        title: sec.title || "",
-        subtitle: sec.subtitle || "",
-        description: sec.description || "",
-        buttonTitle: sec.type === "BUTTON" ? sec.title || "" : "",
-        buttonUrl: sec.link_url || "",
-      }));
+      const restored = blog.sections.map((sec: any, idx: number) => {
+        const engTitle = sec.eng_title || "";
+        const engSubtitle = sec.eng_subtitle || "";
+        const engDescription = sec.eng_description || "";
+        const engButtonTitle = sec.type === "BUTTON" ? sec.eng_title || "" : "";
+        return {
+          id: Date.now() + idx,
+          type: sec.type,
+          files: [],
+          previewUrls: sec.type === "IMAGE" ? sec.images || [] : [],
+          title: sec.title || "",
+          subtitle: sec.subtitle || "",
+          description: sec.description || "",
+          buttonTitle: sec.type === "BUTTON" ? sec.title || "" : "",
+          buttonUrl: sec.link_url || "",
+          engTitle: sec.type === "BUTTON" ? "" : engTitle,
+          engSubtitle: sec.type === "BUTTON" ? "" : engSubtitle,
+          engDescription: sec.type === "BUTTON" ? "" : engDescription,
+          engButtonTitle,
+          // 🌐 영문 데이터 있으면 자동 펼침
+          showEng:
+            sec.type === "BUTTON"
+              ? !!engButtonTitle
+              : !!(engTitle || engSubtitle || engDescription),
+        };
+      });
       setSections(restored);
     } else {
       setSections([]);
@@ -205,6 +292,9 @@ export default function RegisterBlogPage() {
     setPublishDate("");
     setThumbnail({ file: null, previewUrl: "" });
     setSections([]);
+    setEngTitle("");
+    setEngSubtitle("");
+    setShowEngHeader(false);
   };
 
   return (
@@ -253,23 +343,61 @@ export default function RegisterBlogPage() {
                 />
               )}
             </div>
-            <div className="md:col-span-3 space-y-4">
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="블로그 제목"
-                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900"
-                required
-              />
-              <input
-                type="text"
-                value={subtitle}
-                onChange={(e) => setSubtitle(e.target.value)}
-                placeholder="서브 타이틀 (간략한 설명)"
-                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900"
-                required
-              />
+            <div className="md:col-span-3 space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 mb-1">
+                  블로그 제목 {showEngHeader && <span className="text-slate-400 font-normal">(한글)</span>}
+                </label>
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="블로그 제목"
+                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900"
+                  required
+                />
+              </div>
+              {showEngHeader && (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1">
+                    Title <span className="text-slate-400 font-normal">(English, 선택)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={engTitle}
+                    onChange={(e) => setEngTitle(e.target.value)}
+                    placeholder="Blog title in English"
+                    className="w-full px-4 py-2 border border-slate-200 bg-slate-50 rounded-lg focus:ring-2 focus:ring-blue-500 focus:bg-white text-slate-900"
+                  />
+                </div>
+              )}
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 mb-1">
+                  서브 타이틀 {showEngHeader && <span className="text-slate-400 font-normal">(한글)</span>}
+                </label>
+                <input
+                  type="text"
+                  value={subtitle}
+                  onChange={(e) => setSubtitle(e.target.value)}
+                  placeholder="서브 타이틀 (간략한 설명)"
+                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900"
+                  required
+                />
+              </div>
+              {showEngHeader && (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1">
+                    Subtitle <span className="text-slate-400 font-normal">(English, 선택)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={engSubtitle}
+                    onChange={(e) => setEngSubtitle(e.target.value)}
+                    placeholder="Brief subtitle in English"
+                    className="w-full px-4 py-2 border border-slate-200 bg-slate-50 rounded-lg focus:ring-2 focus:ring-blue-500 focus:bg-white text-slate-900"
+                  />
+                </div>
+              )}
               <input
                 type="date"
                 value={publishDate}
@@ -277,6 +405,27 @@ export default function RegisterBlogPage() {
                 className="w-1/2 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900"
                 required
               />
+
+              {/* 🌐 본문 영문 추가/제거 버튼 */}
+              {showEngHeader ? (
+                <button
+                  type="button"
+                  onClick={closeHeaderEng}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 hover:border-red-300 rounded-lg text-xs font-semibold transition-colors"
+                >
+                  <FiTrash2 className="w-3.5 h-3.5" />
+                  본문 영문 입력 제거
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={openHeaderEng}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 border-2 border-dashed border-blue-300 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:border-blue-500 rounded-lg text-sm font-semibold transition-colors"
+                >
+                  <FiPlus className="w-4 h-4" />
+                  본문 영문(English) 입력 추가하기
+                </button>
+              )}
             </div>
           </div>
 
@@ -362,7 +511,7 @@ export default function RegisterBlogPage() {
                       <div className="flex gap-2">
                         <input
                           type="text"
-                          placeholder="소제목"
+                          placeholder={sec.showEng ? "소제목 (한글)" : "소제목"}
                           value={sec.title}
                           onChange={(e) =>
                             setSections(
@@ -377,7 +526,7 @@ export default function RegisterBlogPage() {
                         />
                         <input
                           type="text"
-                          placeholder="서브 부제목"
+                          placeholder={sec.showEng ? "서브 부제목 (한글)" : "서브 부제목"}
                           value={sec.subtitle}
                           onChange={(e) =>
                             setSections(
@@ -391,8 +540,42 @@ export default function RegisterBlogPage() {
                           className="w-1/2 p-2 border rounded text-slate-900"
                         />
                       </div>
+                      {sec.showEng && (
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            placeholder="Title (English, 선택)"
+                            value={sec.engTitle}
+                            onChange={(e) =>
+                              setSections(
+                                sections.map((s) =>
+                                  s.id === sec.id
+                                    ? { ...s, engTitle: e.target.value }
+                                    : s,
+                                ),
+                              )
+                            }
+                            className="w-1/2 p-2 border border-slate-200 bg-white rounded text-slate-900 text-sm"
+                          />
+                          <input
+                            type="text"
+                            placeholder="Subtitle (English, 선택)"
+                            value={sec.engSubtitle}
+                            onChange={(e) =>
+                              setSections(
+                                sections.map((s) =>
+                                  s.id === sec.id
+                                    ? { ...s, engSubtitle: e.target.value }
+                                    : s,
+                                ),
+                              )
+                            }
+                            className="w-1/2 p-2 border border-slate-200 bg-white rounded text-slate-900 text-sm"
+                          />
+                        </div>
+                      )}
                       <textarea
-                        placeholder="본문 내용"
+                        placeholder={sec.showEng ? "본문 내용 (한글)" : "본문 내용"}
                         value={sec.description}
                         onChange={(e) =>
                           setSections(
@@ -405,6 +588,45 @@ export default function RegisterBlogPage() {
                         }
                         className="w-full p-2 border rounded h-20 text-slate-900"
                       />
+                      {sec.showEng && (
+                        <textarea
+                          placeholder="Description (English, 선택)"
+                          value={sec.engDescription}
+                          onChange={(e) =>
+                            setSections(
+                              sections.map((s) =>
+                                s.id === sec.id
+                                  ? { ...s, engDescription: e.target.value }
+                                  : s,
+                              ),
+                            )
+                          }
+                          className="w-full p-2 border border-slate-200 bg-white rounded h-20 text-slate-900 text-sm"
+                        />
+                      )}
+
+                      {/* 🌐 섹션별 영문 추가/제거 버튼 */}
+                      <div className="pt-1">
+                        {sec.showEng ? (
+                          <button
+                            type="button"
+                            onClick={() => closeSectionEng(sec.id)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 hover:border-red-300 rounded-lg text-xs font-semibold transition-colors"
+                          >
+                            <FiTrash2 className="w-3.5 h-3.5" />
+                            이 섹션 영문 제거
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => openSectionEng(sec.id)}
+                            className="w-full flex items-center justify-center gap-2 py-2 border-2 border-dashed border-blue-300 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:border-blue-500 rounded text-sm font-semibold transition-colors"
+                          >
+                            <FiPlus className="w-4 h-4" />
+                            이 섹션에 영문 추가
+                          </button>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
