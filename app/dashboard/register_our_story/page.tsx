@@ -456,22 +456,24 @@ export default function RegisterOurStoryPage() {
                       </div>
                     )}
                     {/* 🌐 영문 추가/제거 버튼 */}
-                    <div className="pt-1">
+                    <div className="pt-2">
                       {item.showEng ? (
                         <button
                           type="button"
                           onClick={() => closeEng(item.id)}
-                          className="text-xs text-red-500 hover:text-red-700 font-semibold"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 hover:border-red-300 rounded-lg text-xs font-semibold transition-colors"
                         >
-                          ✕ 영문 제거
+                          <FiTrash2 className="w-3.5 h-3.5" />
+                          영문 입력 제거
                         </button>
                       ) : (
                         <button
                           type="button"
                           onClick={() => openEng(item.id)}
-                          className="text-xs text-blue-600 hover:text-blue-800 font-semibold"
+                          className="w-full flex items-center justify-center gap-2 py-2.5 border-2 border-dashed border-blue-300 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:border-blue-500 rounded-lg text-sm font-semibold transition-colors"
                         >
-                          + 영문 추가
+                          <FiPlus className="w-4 h-4" />
+                          영문(English) 입력 추가하기
                         </button>
                       )}
                     </div>
