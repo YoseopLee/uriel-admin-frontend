@@ -40,10 +40,18 @@ interface StoryItem {
 
 const currentYear = new Date().getFullYear();
 
+// 🌟 정렬 모드
+// - manual: 사용자가 직접 D&D/위아래 버튼으로 정렬 (default)
+// - desc: 최신순 (year/month 내림차순) → 새 카드는 맨 앞에 추가
+// - asc: 오래된순 (year/month 오름차순) → 새 카드는 맨 뒤에 추가
+type SortMode = "manual" | "desc" | "asc";
+
 export default function RegisterOurStoryPage() {
   const [items, setItems] = useState<StoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // 🌟 정렬 모드 (manual / desc / asc) — 카드 추가 위치 결정에 사용
+  const [sortMode, setSortMode] = useState<SortMode>("manual");
 
   // 🌟 페이지 진입 시 기존 Our Story 자동 로드
   useEffect(() => {
@@ -97,22 +105,27 @@ export default function RegisterOurStoryPage() {
   }, []);
 
   // --- 카드 핸들러 ---
+  // 🌟 sortMode에 따라 새 카드 추가 위치 결정
+  //   - desc(최신순): 맨 앞 (편집 후 바로 보이도록)
+  //   - asc/manual: 맨 뒤 (기존 동작)
   const addItem = () => {
-    setItems([
-      ...items,
-      {
-        id: Date.now(),
-        year: String(currentYear),
-        month: "",
-        title: "",
-        engTitle: "",
-        description: "",
-        engDescription: "",
-        imageFile: null,
-        imageUrl: "",
-        showEng: false, // 🌐 새 카드는 영문 칸 닫힌 상태로 시작
-      },
-    ]);
+    const newCard: StoryItem = {
+      id: Date.now(),
+      year: String(currentYear),
+      month: "",
+      title: "",
+      engTitle: "",
+      description: "",
+      engDescription: "",
+      imageFile: null,
+      imageUrl: "",
+      showEng: false,
+    };
+    if (sortMode === "desc") {
+      setItems([newCard, ...items]);
+    } else {
+      setItems([...items, newCard]);
+    }
   };
 
   const removeItem = (id: number) => {
@@ -187,6 +200,7 @@ export default function RegisterOurStoryPage() {
     const newItems = [...items];
     [newItems[idx], newItems[newIdx]] = [newItems[newIdx], newItems[idx]];
     setItems(newItems);
+    setSortMode("manual"); // 🌟 수동 조작 시 정렬 모드 해제
   };
 
   // 🌟 D&D sensors (마우스/터치 + 키보드 접근성)
@@ -207,9 +221,11 @@ export default function RegisterOurStoryPage() {
     const newIndex = items.findIndex((item) => item.id === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
     setItems(arrayMove(items, oldIndex, newIndex));
+    setSortMode("manual"); // 🌟 수동 조작 시 정렬 모드 해제
   };
 
   // 🌟 연도/월 기반 자동 정렬 (asc: 오래된순, desc: 최신순)
+  //   - 정렬 실행 + sortMode 업데이트 → 이후 카드 추가 위치에 반영
   const sortByDate = (direction: "asc" | "desc") => {
     const label = direction === "desc" ? "최신순" : "오래된순";
     if (
@@ -224,6 +240,7 @@ export default function RegisterOurStoryPage() {
         : bKey.localeCompare(aKey);
     });
     setItems(sorted);
+    setSortMode(direction); // 🌟 정렬 모드 유지
   };
 
   // 저장 (덮어쓰기)
@@ -306,6 +323,25 @@ export default function RegisterOurStoryPage() {
             <p className="text-xs text-amber-600 mt-1">
               ⚠️ 저장 시 기존 Our Story를 덮어씁니다.
             </p>
+            {/* 🌟 현재 정렬 모드 인디케이터 + 새 카드 추가 위치 안내 */}
+            <div className="mt-2 flex items-center gap-1.5">
+              <span className="text-xs text-slate-500">정렬:</span>
+              {sortMode === "desc" && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 font-semibold">
+                  🔵 최신순 · 새 카드는 맨 앞에 추가됨
+                </span>
+              )}
+              {sortMode === "asc" && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold">
+                  🟢 오래된순 · 새 카드는 맨 뒤에 추가됨
+                </span>
+              )}
+              {sortMode === "manual" && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 font-semibold">
+                  ⚪ 수동 · 새 카드는 맨 뒤에 추가됨
+                </span>
+              )}
+            </div>
           </div>
           <div className="flex gap-2 flex-shrink-0 flex-wrap">
             {items.length > 1 && (
@@ -313,7 +349,11 @@ export default function RegisterOurStoryPage() {
                 <button
                   type="button"
                   onClick={() => sortByDate("desc")}
-                  className="text-sm border border-slate-300 px-3 py-2 rounded-lg bg-white text-slate-600 hover:bg-slate-50 transition-colors"
+                  className={`text-sm border px-3 py-2 rounded-lg transition-colors ${
+                    sortMode === "desc"
+                      ? "border-blue-500 bg-blue-50 text-blue-700 font-semibold"
+                      : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+                  }`}
                   title="연도/월 내림차순(최신 → 과거)으로 정렬"
                 >
                   최신순 정렬
@@ -321,7 +361,11 @@ export default function RegisterOurStoryPage() {
                 <button
                   type="button"
                   onClick={() => sortByDate("asc")}
-                  className="text-sm border border-slate-300 px-3 py-2 rounded-lg bg-white text-slate-600 hover:bg-slate-50 transition-colors"
+                  className={`text-sm border px-3 py-2 rounded-lg transition-colors ${
+                    sortMode === "asc"
+                      ? "border-emerald-500 bg-emerald-50 text-emerald-700 font-semibold"
+                      : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+                  }`}
                   title="연도/월 오름차순(과거 → 최신)으로 정렬"
                 >
                   오래된순 정렬
