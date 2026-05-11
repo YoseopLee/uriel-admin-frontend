@@ -575,12 +575,12 @@ export default function RegisterOurStoryPage() {
                           />
                         </div>
                       )}
-                      {/* 하단: 제목 + 설명 */}
+                      {/* 하단: 제목 + 설명 (어드민 입력 줄바꿈 살림) */}
                       <div>
-                        <p className="text-sm font-bold text-slate-900 mb-2 line-clamp-2">
+                        <p className="text-sm font-bold text-slate-900 mb-2 line-clamp-2 whitespace-pre-line">
                           {item.title || "(제목 미입력)"}
                         </p>
-                        <p className="text-xs text-slate-500 line-clamp-3">
+                        <p className="text-xs text-slate-500 line-clamp-3 whitespace-pre-line">
                           {item.description || "(설명 미입력)"}
                         </p>
                       </div>

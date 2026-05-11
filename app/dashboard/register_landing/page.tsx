@@ -722,12 +722,14 @@ export default function RegisterLandingPage() {
                           style={{ color: slide.textColor }}
                         >
                           {slide.subtitle && (
-                            <p className="text-xs font-semibold opacity-90">
+                            <p className="text-xs font-semibold opacity-90 whitespace-pre-line">
                               {slide.subtitle}
                             </p>
                           )}
                           {slide.title && (
-                            <p className="text-base font-bold">{slide.title}</p>
+                            <p className="text-base font-bold whitespace-pre-line">
+                              {slide.title}
+                            </p>
                           )}
                         </div>
                       </div>
