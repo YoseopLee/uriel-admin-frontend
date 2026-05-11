@@ -13,6 +13,7 @@ import {
   FiPlus,
 } from "react-icons/fi";
 import { uploadImageToS3 } from "@/utils/uploadImage";
+import { AutoTextarea } from "@/components/AutoTextarea";
 // 🌟 D&D
 import {
   DndContext,
@@ -379,8 +380,7 @@ export default function RegisterBlogPage() {
                 <label className="block text-xs font-semibold text-slate-500 mb-1">
                   블로그 제목 {showEngHeader && <span className="text-slate-400 font-normal">(한글)</span>}
                 </label>
-                <input
-                  type="text"
+                <AutoTextarea
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="블로그 제목"
@@ -393,8 +393,7 @@ export default function RegisterBlogPage() {
                   <label className="block text-xs font-semibold text-slate-500 mb-1">
                     Title <span className="text-slate-400 font-normal">(English, 선택)</span>
                   </label>
-                  <input
-                    type="text"
+                  <AutoTextarea
                     value={engTitle}
                     onChange={(e) => setEngTitle(e.target.value)}
                     placeholder="Blog title in English"
@@ -406,8 +405,7 @@ export default function RegisterBlogPage() {
                 <label className="block text-xs font-semibold text-slate-500 mb-1">
                   서브 타이틀 {showEngHeader && <span className="text-slate-400 font-normal">(한글)</span>}
                 </label>
-                <input
-                  type="text"
+                <AutoTextarea
                   value={subtitle}
                   onChange={(e) => setSubtitle(e.target.value)}
                   placeholder="서브 타이틀 (간략한 설명)"
@@ -420,8 +418,7 @@ export default function RegisterBlogPage() {
                   <label className="block text-xs font-semibold text-slate-500 mb-1">
                     Subtitle <span className="text-slate-400 font-normal">(English, 선택)</span>
                   </label>
-                  <input
-                    type="text"
+                  <AutoTextarea
                     value={engSubtitle}
                     onChange={(e) => setEngSubtitle(e.target.value)}
                     placeholder="Brief subtitle in English"
@@ -551,8 +548,7 @@ export default function RegisterBlogPage() {
                         텍스트 블록
                       </label>
                       <div className="flex gap-2">
-                        <input
-                          type="text"
+                        <AutoTextarea
                           placeholder={sec.showEng ? "소제목 (한글)" : "소제목"}
                           value={sec.title}
                           onChange={(e) =>
@@ -566,8 +562,7 @@ export default function RegisterBlogPage() {
                           }
                           className="w-1/2 p-2 border rounded text-slate-900"
                         />
-                        <input
-                          type="text"
+                        <AutoTextarea
                           placeholder={sec.showEng ? "서브 부제목 (한글)" : "서브 부제목"}
                           value={sec.subtitle}
                           onChange={(e) =>
@@ -584,8 +579,7 @@ export default function RegisterBlogPage() {
                       </div>
                       {sec.showEng && (
                         <div className="flex gap-2">
-                          <input
-                            type="text"
+                          <AutoTextarea
                             placeholder="Title (English, 선택)"
                             value={sec.engTitle}
                             onChange={(e) =>
@@ -599,8 +593,7 @@ export default function RegisterBlogPage() {
                             }
                             className="w-1/2 p-2 border border-slate-200 bg-white rounded text-slate-900 text-sm"
                           />
-                          <input
-                            type="text"
+                          <AutoTextarea
                             placeholder="Subtitle (English, 선택)"
                             value={sec.engSubtitle}
                             onChange={(e) =>

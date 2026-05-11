@@ -13,6 +13,7 @@ import {
 } from "react-icons/fi";
 import { uploadImageToS3 } from "@/utils/uploadImage";
 import { fetchAuthSession } from "aws-amplify/auth";
+import { AutoTextarea } from "@/components/AutoTextarea";
 // 🌟 D&D
 import {
   DndContext,
@@ -529,8 +530,7 @@ export default function RegisterLandingPage() {
                         <label className="block text-xs font-semibold text-slate-500 mb-1">
                           메인 타이틀 {slide.showEng && <span className="text-slate-400 font-normal">(한글)</span>}
                         </label>
-                        <input
-                          type="text"
+                        <AutoTextarea
                           placeholder="예: 혁신의 시작"
                           value={slide.title}
                           onChange={(e) =>
@@ -548,8 +548,7 @@ export default function RegisterLandingPage() {
                         <label className="block text-xs font-semibold text-slate-500 mb-1">
                           서브 타이틀 {slide.showEng && <span className="text-slate-400 font-normal">(한글)</span>}
                         </label>
-                        <input
-                          type="text"
+                        <AutoTextarea
                           placeholder="예: 2026년형 신제품 출시"
                           value={slide.subtitle}
                           onChange={(e) =>
@@ -572,8 +571,7 @@ export default function RegisterLandingPage() {
                           <label className="block text-xs font-semibold text-slate-500 mb-1">
                             Main Title <span className="text-slate-400 font-normal">(English, 선택)</span>
                           </label>
-                          <input
-                            type="text"
+                          <AutoTextarea
                             placeholder="e.g. The Beginning of Innovation"
                             value={slide.engTitle}
                             onChange={(e) =>
@@ -591,8 +589,7 @@ export default function RegisterLandingPage() {
                           <label className="block text-xs font-semibold text-slate-500 mb-1">
                             Subtitle <span className="text-slate-400 font-normal">(English, 선택)</span>
                           </label>
-                          <input
-                            type="text"
+                          <AutoTextarea
                             placeholder="e.g. New Product Launch 2026"
                             value={slide.engSubtitle}
                             onChange={(e) =>

@@ -6,6 +6,7 @@ import { useSearchParams, useRouter } from "next/navigation"; // 🌟 URL 파라
 import { FiPlus, FiTrash2, FiImage, FiType, FiLink2 } from "react-icons/fi";
 import { uploadImageToS3 } from "@/utils/uploadImage";
 import { fetchAuthSession } from "aws-amplify/auth";
+import { AutoTextarea } from "@/components/AutoTextarea";
 // 🌟 D&D
 import {
   DndContext,
@@ -647,8 +648,7 @@ function RegisterDeviceForm() {
                 <label className="block text-xs font-semibold text-slate-500 mb-1">
                   썸네일 타이틀 {showEngHeader && <span className="text-slate-400 font-normal">(한글)</span>}
                 </label>
-                <input
-                  type="text"
+                <AutoTextarea
                   placeholder="제품명"
                   value={thumbnail.title}
                   onChange={(e) =>
@@ -663,8 +663,7 @@ function RegisterDeviceForm() {
                   <label className="block text-xs font-semibold text-slate-500 mb-1">
                     Title <span className="text-slate-400 font-normal">(English, 선택)</span>
                   </label>
-                  <input
-                    type="text"
+                  <AutoTextarea
                     placeholder="e.g. UTH-170"
                     value={thumbnail.engTitle}
                     onChange={(e) =>
@@ -678,8 +677,7 @@ function RegisterDeviceForm() {
                 <label className="block text-xs font-semibold text-slate-500 mb-1">
                   썸네일 서브타이틀 {showEngHeader && <span className="text-slate-400 font-normal">(한글)</span>}
                 </label>
-                <input
-                  type="text"
+                <AutoTextarea
                   placeholder="한줄 설명"
                   value={thumbnail.subtitle}
                   onChange={(e) =>
@@ -693,8 +691,7 @@ function RegisterDeviceForm() {
                   <label className="block text-xs font-semibold text-slate-500 mb-1">
                     Subtitle <span className="text-slate-400 font-normal">(English, 선택)</span>
                   </label>
-                  <input
-                    type="text"
+                  <AutoTextarea
                     placeholder="e.g. Standard Electric Heating Controller"
                     value={thumbnail.engSubtitle}
                     onChange={(e) =>
@@ -838,8 +835,7 @@ function RegisterDeviceForm() {
                         <label className="block text-xs font-semibold text-slate-500 mb-1">
                           텍스트 타이틀 {sec.showEng && <span className="text-slate-400 font-normal">(한글)</span>}
                         </label>
-                        <input
-                          type="text"
+                        <AutoTextarea
                           placeholder="예: 혁신적인 기술력"
                           value={sec.title}
                           onChange={(e) =>
@@ -858,8 +854,7 @@ function RegisterDeviceForm() {
                         <label className="block text-xs font-semibold text-slate-500 mb-1">
                           텍스트 서브타이틀 {sec.showEng && <span className="text-slate-400 font-normal">(한글)</span>}
                         </label>
-                        <input
-                          type="text"
+                        <AutoTextarea
                           placeholder="부제목 입력"
                           value={sec.subtitle}
                           onChange={(e) =>
@@ -881,8 +876,7 @@ function RegisterDeviceForm() {
                           <label className="block text-xs font-semibold text-slate-500 mb-1">
                             Title <span className="text-slate-400 font-normal">(English, 선택)</span>
                           </label>
-                          <input
-                            type="text"
+                          <AutoTextarea
                             placeholder="e.g. Innovative Technology"
                             value={sec.engTitle}
                             onChange={(e) =>
@@ -901,8 +895,7 @@ function RegisterDeviceForm() {
                           <label className="block text-xs font-semibold text-slate-500 mb-1">
                             Subtitle <span className="text-slate-400 font-normal">(English, 선택)</span>
                           </label>
-                          <input
-                            type="text"
+                          <AutoTextarea
                             placeholder="Subtitle in English"
                             value={sec.engSubtitle}
                             onChange={(e) =>
@@ -993,8 +986,7 @@ function RegisterDeviceForm() {
                         <label className="block text-xs font-semibold text-slate-500 mb-1">
                           버튼에 표시될 문구 {sec.showEng && <span className="text-slate-400 font-normal">(한글)</span>}
                         </label>
-                        <input
-                          type="text"
+                        <AutoTextarea
                           placeholder="버튼 텍스트 입력"
                           value={sec.buttonTitle}
                           onChange={(e) =>
@@ -1035,8 +1027,7 @@ function RegisterDeviceForm() {
                         <label className="block text-xs font-semibold text-slate-500 mb-1">
                           Button Text <span className="text-slate-400 font-normal">(English, 선택)</span>
                         </label>
-                        <input
-                          type="text"
+                        <AutoTextarea
                           placeholder="e.g. Learn More"
                           value={sec.engButtonTitle}
                           onChange={(e) =>
@@ -1126,8 +1117,7 @@ function RegisterDeviceForm() {
               <label className="block text-xs font-semibold text-slate-500 mb-1">
                 시리즈명 {showEngHeader && <span className="text-slate-400 font-normal">(한글)</span>}
               </label>
-              <input
-                type="text"
+              <AutoTextarea
                 placeholder="시리즈명 입력 (예: UTH-170 Series)"
                 value={seriesName}
                 onChange={(e) => setSeriesName(e.target.value)}
@@ -1139,8 +1129,7 @@ function RegisterDeviceForm() {
                 <label className="block text-xs font-semibold text-slate-500 mb-1">
                   Series Name <span className="text-slate-400 font-normal">(English, 선택)</span>
                 </label>
-                <input
-                  type="text"
+                <AutoTextarea
                   placeholder="e.g. UTH-170 Series"
                   value={engSeriesName}
                   onChange={(e) => setEngSeriesName(e.target.value)}
@@ -1243,8 +1232,7 @@ function RegisterDeviceForm() {
                   </div>
                   <div className="w-full md:w-2/3 space-y-2">
                     <div className="grid grid-cols-2 gap-3">
-                      <input
-                        type="text"
+                      <AutoTextarea
                         placeholder={rel.showEng ? "타이틀 (한글)" : "타이틀"}
                         value={rel.title}
                         onChange={(e) =>
@@ -1259,8 +1247,7 @@ function RegisterDeviceForm() {
                         className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900 col-span-2"
                       />
                       {rel.showEng && (
-                        <input
-                          type="text"
+                        <AutoTextarea
                           placeholder="Title (English, 선택)"
                           value={rel.engTitle}
                           onChange={(e) =>
@@ -1280,8 +1267,7 @@ function RegisterDeviceForm() {
                         const enKey = `engDesc${n}` as "engDesc1" | "engDesc2" | "engDesc3" | "engDesc4";
                         return (
                           <div key={n} className="space-y-1">
-                            <input
-                              type="text"
+                            <AutoTextarea
                               placeholder={rel.showEng ? `설명 ${n} (한글)` : `설명 ${n}`}
                               value={rel[koKey]}
                               onChange={(e) =>
@@ -1296,8 +1282,7 @@ function RegisterDeviceForm() {
                               className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900"
                             />
                             {rel.showEng && (
-                              <input
-                                type="text"
+                              <AutoTextarea
                                 placeholder={`Desc ${n} (English, 선택)`}
                                 value={rel[enKey]}
                                 onChange={(e) =>

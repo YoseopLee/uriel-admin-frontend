@@ -4,6 +4,7 @@
 import { useState, useEffect } from "react";
 import { fetchAuthSession } from "aws-amplify/auth";
 import { FiTrash2, FiEdit2, FiX, FiPlus } from "react-icons/fi";
+import { AutoTextarea } from "@/components/AutoTextarea";
 
 export default function RegisterCategoryPage() {
   const [categories, setCategories] = useState<any[]>([]);
@@ -211,8 +212,7 @@ export default function RegisterCategoryPage() {
             <label className="block text-sm font-semibold text-slate-700 mb-2">
               메인 카테고리명 {showEng && <span className="text-slate-400 font-normal">(한글)</span>} (예: 난방 제어)
             </label>
-            <input
-              type="text"
+            <AutoTextarea
               value={mainCategory}
               onChange={(e) => setMainCategory(e.target.value)}
               disabled={editMode} // 🌟 식별자 역할을 하므로 수정 모드일 땐 이름 변경 불가
@@ -226,8 +226,7 @@ export default function RegisterCategoryPage() {
               <label className="block text-sm font-semibold text-slate-700 mb-2">
                 Main Category Name <span className="text-slate-400 font-normal">(English, 선택)</span>
               </label>
-              <input
-                type="text"
+              <AutoTextarea
                 value={engMainCategory}
                 onChange={(e) => setEngMainCategory(e.target.value)}
                 placeholder="e.g. Heating Control"

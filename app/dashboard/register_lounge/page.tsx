@@ -14,6 +14,7 @@ import {
   FiPlus,
 } from "react-icons/fi";
 import { uploadImageToS3 } from "@/utils/uploadImage";
+import { AutoTextarea } from "@/components/AutoTextarea";
 // 🌟 D&D
 import {
   DndContext,
@@ -408,8 +409,7 @@ export default function RegisterLoungePage() {
               <label className="block text-sm font-semibold mb-2 text-slate-700">
                 제목 {showEngHeader && <span className="text-slate-400 font-normal">(한글)</span>}
               </label>
-              <input
-                type="text"
+              <AutoTextarea
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="제목"
@@ -423,8 +423,7 @@ export default function RegisterLoungePage() {
                 <label className="block text-sm font-semibold mb-2 text-slate-700">
                   Title <span className="text-slate-400 font-normal">(English, 선택)</span>
                 </label>
-                <input
-                  type="text"
+                <AutoTextarea
                   value={engTitle}
                   onChange={(e) => setEngTitle(e.target.value)}
                   placeholder="Title in English"
@@ -649,8 +648,7 @@ export default function RegisterLoungePage() {
                         텍스트 블록
                       </label>
                       <div className="flex gap-2">
-                        <input
-                          type="text"
+                        <AutoTextarea
                           placeholder={sec.showEng ? "소제목 (한글)" : "소제목"}
                           value={sec.title}
                           onChange={(e) =>
@@ -664,8 +662,7 @@ export default function RegisterLoungePage() {
                           }
                           className="w-1/2 p-2 border rounded text-slate-900"
                         />
-                        <input
-                          type="text"
+                        <AutoTextarea
                           placeholder={sec.showEng ? "서브 부제목 (한글)" : "서브 부제목"}
                           value={sec.subtitle}
                           onChange={(e) =>
@@ -682,8 +679,7 @@ export default function RegisterLoungePage() {
                       </div>
                       {sec.showEng && (
                         <div className="flex gap-2">
-                          <input
-                            type="text"
+                          <AutoTextarea
                             placeholder="Title (English, 선택)"
                             value={sec.engTitle}
                             onChange={(e) =>
@@ -697,8 +693,7 @@ export default function RegisterLoungePage() {
                             }
                             className="w-1/2 p-2 border border-slate-200 bg-white rounded text-sm text-slate-900"
                           />
-                          <input
-                            type="text"
+                          <AutoTextarea
                             placeholder="Subtitle (English, 선택)"
                             value={sec.engSubtitle}
                             onChange={(e) =>

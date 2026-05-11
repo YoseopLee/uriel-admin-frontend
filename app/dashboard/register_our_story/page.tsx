@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { fetchAuthSession } from "aws-amplify/auth";
 import { FiTrash2, FiPlus, FiInfo, FiArrowUp, FiArrowDown, FiImage } from "react-icons/fi";
 import { uploadImageToS3 } from "@/utils/uploadImage";
+import { AutoTextarea } from "@/components/AutoTextarea";
 // 🌟 D&D 라이브러리
 import {
   DndContext,
@@ -449,8 +450,7 @@ export default function RegisterOurStoryPage() {
                       <label className="block text-xs font-semibold text-slate-600 mb-1">
                         제목 {item.showEng && <span className="text-slate-400">(한글)</span>}
                       </label>
-                      <input
-                        type="text"
+                      <AutoTextarea
                         placeholder="예: 우리엘전자 온라인 사옥 홈페이지 리뉴얼"
                         value={item.title}
                         onChange={(e) =>
@@ -464,8 +464,7 @@ export default function RegisterOurStoryPage() {
                         <label className="block text-xs font-semibold text-slate-600 mb-1">
                           Title <span className="text-slate-400">(English, 선택)</span>
                         </label>
-                        <input
-                          type="text"
+                        <AutoTextarea
                           placeholder="e.g. Uriel Electronics Homepage Renewal"
                           value={item.engTitle}
                           onChange={(e) =>

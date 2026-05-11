@@ -4,6 +4,7 @@
 import { useState, useEffect } from "react";
 import { fetchAuthSession } from "aws-amplify/auth";
 import { FiTrash2, FiEdit2, FiX, FiPlus } from "react-icons/fi";
+import { AutoTextarea } from "@/components/AutoTextarea";
 
 export default function RegisterFaqPage() {
   const [faqs, setFaqs] = useState<any[]>([]);
@@ -146,8 +147,7 @@ export default function RegisterFaqPage() {
             <label className="block text-sm font-semibold text-slate-700 mb-2">
               질문 {showEng && <span className="text-slate-400 font-normal">(한글)</span>}
             </label>
-            <input
-              type="text"
+            <AutoTextarea
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
               className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 text-slate-900"
@@ -159,8 +159,7 @@ export default function RegisterFaqPage() {
               <label className="block text-sm font-semibold text-slate-700 mb-2">
                 Question <span className="text-slate-400 font-normal">(English, 선택)</span>
               </label>
-              <input
-                type="text"
+              <AutoTextarea
                 value={engQuestion}
                 onChange={(e) => setEngQuestion(e.target.value)}
                 placeholder="e.g. What is the warranty period?"

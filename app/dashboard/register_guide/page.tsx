@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { fetchAuthSession } from "aws-amplify/auth";
 import { FiTrash2, FiEdit2, FiX, FiFileText, FiPlus } from "react-icons/fi";
 import { uploadImageToS3 } from "@/utils/uploadImage"; // PDF도 이 함수로 업로드 가능
+import { AutoTextarea } from "@/components/AutoTextarea";
 
 export default function RegisterGuidePage() {
   const [guides, setGuides] = useState<any[]>([]);
@@ -208,8 +209,7 @@ export default function RegisterGuidePage() {
               <label className="block text-sm font-semibold text-slate-700 mb-2">
                 가이드 제목 {showEng && <span className="text-slate-400 font-normal">(한글)</span>}
               </label>
-              <input
-                type="text"
+              <AutoTextarea
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 className="w-full px-4 py-2 border rounded-lg text-slate-900"
@@ -225,8 +225,7 @@ export default function RegisterGuidePage() {
               <label className="block text-sm font-semibold text-slate-700 mb-2">
                 Title <span className="text-slate-400 font-normal">(English, 선택)</span>
               </label>
-              <input
-                type="text"
+              <AutoTextarea
                 value={engTitle}
                 onChange={(e) => setEngTitle(e.target.value)}
                 placeholder="e.g. URC-02 System Guide (ENG)"
