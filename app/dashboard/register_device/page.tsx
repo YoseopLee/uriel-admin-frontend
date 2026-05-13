@@ -3,7 +3,14 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation"; // 🌟 URL 파라미터 읽기용
-import { FiPlus, FiTrash2, FiImage, FiType, FiLink2 } from "react-icons/fi";
+import {
+  FiPlus,
+  FiTrash2,
+  FiImage,
+  FiType,
+  FiLink2,
+  FiDroplet,
+} from "react-icons/fi";
 import { uploadImageToS3 } from "@/utils/uploadImage";
 import { fetchAuthSession } from "aws-amplify/auth";
 import { AutoTextarea } from "@/components/AutoTextarea";
@@ -37,6 +44,8 @@ interface SectionData {
   description: string;
   buttonTitle: string;
   buttonUrl: string;
+  // 🎨 이미지 위에 표시될 텍스트 색상 (IMAGE 블록 전용, hex)
+  textColor: string;
   // 🌐 영문 (옵셔널)
   engTitle: string;
   engSubtitle: string;
@@ -215,7 +224,7 @@ function RegisterDeviceForm() {
             engSubtitle: engThumbSubtitle,
           });
 
-          // 섹션 데이터 복원 (🌐 영문 포함)
+          // 섹션 데이터 복원 (🌐 영문 + 🎨 이미지 텍스트 색상 포함)
           if (data.sections) {
             const restoredSections = data.sections.map(
               (sec: any, idx: number) => {
@@ -234,6 +243,8 @@ function RegisterDeviceForm() {
                   description: sec.description || "",
                   buttonTitle: sec.type === "BUTTON" ? sec.title || "" : "",
                   buttonUrl: sec.link_url || "",
+                  // 🎨 IMAGE 블록 텍스트 색상 (없으면 기본값)
+                  textColor: sec.text_color || "#FFFFFF",
                   engTitle: sec.type === "BUTTON" ? "" : engTitle,
                   engSubtitle: sec.type === "BUTTON" ? "" : engSubtitle,
                   engDescription: sec.type === "BUTTON" ? "" : engDescription,
@@ -369,6 +380,7 @@ function RegisterDeviceForm() {
         description: "",
         buttonTitle: "",
         buttonUrl: "",
+        textColor: "#FFFFFF", // 🎨 IMAGE 블록 텍스트 색상 기본값
         engTitle: "",
         engSubtitle: "",
         engDescription: "",
@@ -431,7 +443,11 @@ function RegisterDeviceForm() {
                     sec.files.map((file) => uploadImageToS3(file)),
                   )
                 : sec.previewUrls;
-            return { type: "IMAGE", images: uploadedUrls };
+            return {
+              type: "IMAGE",
+              images: uploadedUrls,
+              text_color: sec.textColor, // 🎨 이미지 위 텍스트 색상
+            };
           } else if (sec.type === "TEXT") {
             return {
               type: "TEXT",
@@ -790,39 +806,80 @@ function RegisterDeviceForm() {
 
                 {/* 🌟 1. IMAGE 타입 렌더링 */}
                 {sec.type === "IMAGE" && (
-                  <div>
-                    <label className="block text-sm font-semibold mb-2 text-slate-900">
-                      이미지 등록 (최대 10장)
-                    </label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={(e) => {
-                        const files = Array.from(e.target.files || []).slice(
-                          0,
-                          10,
-                        );
-                        const urls = files.map((f) => URL.createObjectURL(f));
-                        setSections(
-                          sections.map((s) =>
-                            s.id === sec.id
-                              ? { ...s, files, previewUrls: urls }
-                              : s,
-                          ),
-                        );
-                      }}
-                      className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 text-slate-900"
-                    />
-                    <div className="flex gap-3 mt-4 overflow-x-auto pb-2">
-                      {sec.previewUrls.map((url, i) => (
-                        <img
-                          key={i}
-                          src={url}
-                          className="h-24 w-24 object-cover rounded-lg border shadow-sm"
-                          alt="sec-img"
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-semibold mb-2 text-slate-900">
+                        이미지 등록 (최대 10장)
+                      </label>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={(e) => {
+                          const files = Array.from(e.target.files || []).slice(
+                            0,
+                            10,
+                          );
+                          const urls = files.map((f) => URL.createObjectURL(f));
+                          setSections(
+                            sections.map((s) =>
+                              s.id === sec.id
+                                ? { ...s, files, previewUrls: urls }
+                                : s,
+                            ),
+                          );
+                        }}
+                        className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 text-slate-900"
+                      />
+                      <div className="flex gap-3 mt-4 overflow-x-auto pb-2">
+                        {sec.previewUrls.map((url, i) => (
+                          <img
+                            key={i}
+                            src={url}
+                            className="h-24 w-24 object-cover rounded-lg border shadow-sm"
+                            alt="sec-img"
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* 🎨 이미지 위 텍스트 색상 (랜딩페이지 슬라이드와 동일 패턴) */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-500 mb-1 flex items-center">
+                        <FiDroplet className="mr-1" /> 텍스트 색상
+                      </label>
+                      <div className="flex items-center gap-2 max-w-xs">
+                        <input
+                          type="color"
+                          value={sec.textColor}
+                          onChange={(e) =>
+                            setSections(
+                              sections.map((s) =>
+                                s.id === sec.id
+                                  ? { ...s, textColor: e.target.value }
+                                  : s,
+                              ),
+                            )
+                          }
+                          className="h-10 w-12 border border-slate-300 rounded-lg cursor-pointer bg-white p-1 flex-shrink-0"
+                          title="이미지 위에 표시될 텍스트 색상을 선택하세요"
                         />
-                      ))}
+                        <input
+                          type="text"
+                          value={sec.textColor}
+                          onChange={(e) =>
+                            setSections(
+                              sections.map((s) =>
+                                s.id === sec.id
+                                  ? { ...s, textColor: e.target.value }
+                                  : s,
+                              ),
+                            )
+                          }
+                          placeholder="#FFFFFF"
+                          className="flex-1 min-w-0 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm text-slate-900 font-mono"
+                        />
+                      </div>
                     </div>
                   </div>
                 )}
