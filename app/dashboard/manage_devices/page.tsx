@@ -1,10 +1,10 @@
 // app/dashboard/manage_devices/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { fetchAuthSession } from "aws-amplify/auth";
-import { FiTrash2, FiExternalLink, FiEdit } from "react-icons/fi";
+import { FiTrash2, FiExternalLink, FiEdit, FiSearch, FiX } from "react-icons/fi";
 
 // 간단한 타입 정의
 interface DeviceItem {
@@ -18,10 +18,43 @@ interface DeviceItem {
   created_at: string;
 }
 
+// 🌟 카테고리 탭: 모든 카테고리를 의미하는 특수 값
+const ALL_CATEGORIES = "__ALL__";
+
 export default function ManageDevicesPage() {
   const [devices, setDevices] = useState<DeviceItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  // 🌟 검색어 + 카테고리 필터 state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string>(ALL_CATEGORIES);
   const router = useRouter();
+
+  // 🌟 카테고리별 제품 수 + 정렬된 카테고리 목록
+  const { categoryList, categoryCounts } = useMemo(() => {
+    const counts: Record<string, number> = {};
+    devices.forEach((d) => {
+      const cat = d.main_category || "기타";
+      counts[cat] = (counts[cat] || 0) + 1;
+    });
+    const list = Object.keys(counts).sort((a, b) => a.localeCompare(b, "ko"));
+    return { categoryList: list, categoryCounts: counts };
+  }, [devices]);
+
+  // 🌟 필터링된 제품 목록 (선택된 카테고리 + 검색어 적용)
+  const filteredDevices = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return devices.filter((d) => {
+      // 카테고리 필터
+      if (selectedCategory !== ALL_CATEGORIES && d.main_category !== selectedCategory) {
+        return false;
+      }
+      // 검색어 필터 (제품명)
+      if (q && !(d.thumbnail_info?.title || "").toLowerCase().includes(q)) {
+        return false;
+      }
+      return true;
+    });
+  }, [devices, searchQuery, selectedCategory]);
 
   // 🌟 컴포넌트 로드 시 제품 목록 불러오기
   const fetchDevices = async () => {
@@ -100,19 +133,106 @@ export default function ManageDevicesPage() {
           등록된 제품이 없습니다. 새로운 제품을 먼저 등록해주세요.
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-slate-200">
-          <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="uppercase tracking-wider border-b border-slate-200 bg-slate-50 text-slate-500 font-bold">
-              <tr>
-                <th className="px-6 py-4">이미지</th>
-                <th className="px-6 py-4">제품명 (타이틀)</th>
-                <th className="px-6 py-4">카테고리</th>
-                <th className="px-6 py-4">등록일</th>
-                <th className="px-6 py-4 text-center">관리</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200">
-              {devices.map((device) => (
+        <>
+          {/* 🌟 검색 + 카테고리 필터 영역 */}
+          <div className="space-y-4 mb-5">
+            {/* 검색 input */}
+            <div className="relative max-w-md">
+              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="제품명으로 검색..."
+                className="w-full pl-10 pr-9 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-slate-900"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded"
+                  title="검색어 지우기"
+                >
+                  <FiX size={16} />
+                </button>
+              )}
+            </div>
+
+            {/* 카테고리 탭 */}
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setSelectedCategory(ALL_CATEGORIES)}
+                className={`text-sm px-3 py-1.5 rounded-lg border font-semibold transition-colors ${
+                  selectedCategory === ALL_CATEGORIES
+                    ? "bg-blue-600 text-white border-blue-600"
+                    : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50"
+                }`}
+              >
+                전체 <span className="ml-1 opacity-80">({devices.length})</span>
+              </button>
+              {categoryList.map((cat) => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`text-sm px-3 py-1.5 rounded-lg border font-semibold transition-colors ${
+                    selectedCategory === cat
+                      ? "bg-blue-600 text-white border-blue-600"
+                      : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50"
+                  }`}
+                >
+                  {cat}{" "}
+                  <span className="ml-1 opacity-80">
+                    ({categoryCounts[cat]})
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {/* 현재 필터 결과 요약 */}
+            <p className="text-xs text-slate-500">
+              {filteredDevices.length}건 표시 중
+              {selectedCategory !== ALL_CATEGORIES && (
+                <span className="ml-1">· 카테고리: {selectedCategory}</span>
+              )}
+              {searchQuery && (
+                <span className="ml-1">· 검색: &quot;{searchQuery}&quot;</span>
+              )}
+            </p>
+          </div>
+
+          {/* 결과 없음 처리 */}
+          {filteredDevices.length === 0 ? (
+            <div className="text-center py-20 bg-slate-50 rounded-lg border-2 border-dashed border-slate-200 text-slate-500">
+              검색 조건에 맞는 제품이 없습니다.
+              <div className="mt-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery("");
+                    setSelectedCategory(ALL_CATEGORIES);
+                  }}
+                  className="text-sm text-blue-600 hover:text-blue-800 underline"
+                >
+                  필터 초기화
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="overflow-x-auto rounded-lg border border-slate-200">
+              <table className="w-full text-left text-sm whitespace-nowrap">
+                <thead className="uppercase tracking-wider border-b border-slate-200 bg-slate-50 text-slate-500 font-bold">
+                  <tr>
+                    <th className="px-6 py-4">이미지</th>
+                    <th className="px-6 py-4">제품명 (타이틀)</th>
+                    <th className="px-6 py-4">카테고리</th>
+                    <th className="px-6 py-4">등록일</th>
+                    <th className="px-6 py-4 text-center">관리</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {filteredDevices.map((device) => (
                 <tr
                   key={device.id}
                   className="hover:bg-slate-50 transition-colors"
@@ -179,9 +299,11 @@ export default function ManageDevicesPage() {
                   </td>
                 </tr>
               ))}
-            </tbody>
-          </table>
-        </div>
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
