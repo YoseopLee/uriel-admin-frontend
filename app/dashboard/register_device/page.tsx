@@ -843,10 +843,10 @@ function RegisterDeviceForm() {
                       </div>
                     </div>
 
-                    {/* 🎨 이미지 위 텍스트 색상 (랜딩페이지 슬라이드와 동일 패턴) */}
+                    {/* 🎨 이미지 캐러셀 화살표 색상 (어드민 UI 라벨만 화살표, API 키는 text_color 유지) */}
                     <div>
                       <label className="block text-xs font-semibold text-slate-500 mb-1 flex items-center">
-                        <FiDroplet className="mr-1" /> 텍스트 색상
+                        <FiDroplet className="mr-1" /> 화살표 색상
                       </label>
                       <div className="flex items-center gap-2 max-w-xs">
                         <input
@@ -862,7 +862,7 @@ function RegisterDeviceForm() {
                             )
                           }
                           className="h-10 w-12 border border-slate-300 rounded-lg cursor-pointer bg-white p-1 flex-shrink-0"
-                          title="이미지 위에 표시될 텍스트 색상을 선택하세요"
+                          title="이미지 캐러셀 화살표 색상을 선택하세요"
                         />
                         <input
                           type="text"
