@@ -1,10 +1,38 @@
 // app/dashboard/manage_devices/page.tsx
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { fetchAuthSession } from "aws-amplify/auth";
-import { FiTrash2, FiExternalLink, FiEdit, FiSearch, FiX } from "react-icons/fi";
+import {
+  FiTrash2,
+  FiExternalLink,
+  FiEdit,
+  FiSearch,
+  FiX,
+  FiMove,
+  FiLoader,
+  FiCheck,
+  FiAlertCircle,
+} from "react-icons/fi";
+// 🌟 D&D
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 // 간단한 타입 정의
 interface DeviceItem {
@@ -21,12 +49,118 @@ interface DeviceItem {
 // 🌟 카테고리 탭: 모든 카테고리를 의미하는 특수 값
 const ALL_CATEGORIES = "__ALL__";
 
+// 🌟 자동 저장 상태
+type SaveStatus = "idle" | "saving" | "saved" | "error";
+
+// 🌟 D&D 가능한 테이블 행 (드래그 핸들 cell 포함)
+function SortableDeviceRow({
+  device,
+  onEdit,
+  onDelete,
+  onOpenRaw,
+}: {
+  device: DeviceItem;
+  onEdit: () => void;
+  onDelete: () => void;
+  onOpenRaw: () => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: device.id });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    background: isDragging ? "#f1f5f9" : undefined,
+  };
+
+  return (
+    <tr
+      ref={setNodeRef}
+      style={style}
+      className="hover:bg-slate-50 transition-colors"
+    >
+      <td className="px-3 py-4 w-10">
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing p-1.5 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 touch-none"
+          title="드래그하여 순서 변경"
+          aria-label="순서 변경"
+        >
+          <FiMove />
+        </button>
+      </td>
+      <td className="px-6 py-4">
+        <img
+          src={
+            device.thumbnail_info?.image_url ||
+            "https://via.placeholder.com/100"
+          }
+          alt="thumbnail"
+          className="w-16 h-16 object-cover rounded-md border border-slate-200 shadow-sm"
+        />
+      </td>
+      <td className="px-6 py-4 font-semibold text-slate-800">
+        {device.thumbnail_info?.title || "제목 없음"}
+      </td>
+      <td className="px-6 py-4">
+        <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-md font-bold mb-1">
+          {device.main_category}
+        </span>
+        <div className="text-xs text-slate-500 mt-1">
+          {device.sub_category?.join(", ")}
+        </div>
+      </td>
+      <td className="px-6 py-4 text-slate-500">
+        {new Date(device.created_at).toLocaleDateString("ko-KR")}
+      </td>
+      <td className="px-6 py-4">
+        <div className="flex justify-center gap-2">
+          <button
+            onClick={onOpenRaw}
+            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+            title="데이터 원본 확인"
+          >
+            <FiExternalLink size={18} />
+          </button>
+          <button
+            onClick={onEdit}
+            className="p-2 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+            title="수정"
+          >
+            <FiEdit size={18} />
+          </button>
+          <button
+            onClick={onDelete}
+            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+            title="삭제"
+          >
+            <FiTrash2 size={18} />
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
 export default function ManageDevicesPage() {
   const [devices, setDevices] = useState<DeviceItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   // 🌟 검색어 + 카테고리 필터 state
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>(ALL_CATEGORIES);
+  // 🌟 순서 저장 상태
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  const saveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const saveStatusTimerRef = useRef<NodeJS.Timeout | null>(null);
   const router = useRouter();
 
   // 🌟 카테고리별 제품 수 + 정렬된 카테고리 목록
@@ -55,6 +189,93 @@ export default function ManageDevicesPage() {
       return true;
     });
   }, [devices, searchQuery, selectedCategory]);
+
+  // 🌟 D&D 활성화 조건: 카테고리 탭 선택 + 검색어 없음
+  //   - "전체" 탭에서는 카테고리 무관 순서를 일괄 변경하기엔 위험 → 비활성화
+  //   - 검색 결과만 정렬하면 의도와 다른 순서가 저장될 수 있음 → 검색 중에도 비활성화
+  const isDndEnabled =
+    selectedCategory !== ALL_CATEGORIES && !searchQuery.trim();
+
+  // 🌟 D&D sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  // 🌟 순서 변경 후 백엔드에 자동 저장 (debounce 1초)
+  const scheduleSave = (orderedIds: string[]) => {
+    setSaveStatus("saving");
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    if (saveStatusTimerRef.current) clearTimeout(saveStatusTimerRef.current);
+    saveTimerRef.current = setTimeout(async () => {
+      try {
+        const session = await fetchAuthSession();
+        const token = session.tokens?.accessToken?.toString();
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/devices/reorder`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ ordered_ids: orderedIds }),
+          },
+        );
+        if (!res.ok) throw new Error("저장 실패");
+        setSaveStatus("saved");
+        // 3초 후 idle로 복귀
+        saveStatusTimerRef.current = setTimeout(
+          () => setSaveStatus("idle"),
+          3000,
+        );
+      } catch (err) {
+        console.error("순서 저장 실패:", err);
+        setSaveStatus("error");
+      }
+    }, 1000);
+  };
+
+  // 🌟 드래그 종료 핸들러
+  //   - 현재 보이는 카테고리 내의 순서만 변경
+  //   - devices 배열에서 그 카테고리 device들을 새 순서로 재배치
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    if (!isDndEnabled) return;
+
+    // filteredDevices(보이는 항목)에서 위치 계산
+    const oldIndex = filteredDevices.findIndex((d) => d.id === active.id);
+    const newIndex = filteredDevices.findIndex((d) => d.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const newCategoryOrder = arrayMove(filteredDevices, oldIndex, newIndex);
+    const newCategoryIds = newCategoryOrder.map((d) => d.id);
+
+    // 전체 devices 배열에서 해당 카테고리 device들만 새 순서로 교체
+    // 다른 카테고리는 원래 위치 유지
+    let cursor = 0;
+    const newDevices = devices.map((d) => {
+      if (d.main_category === selectedCategory) {
+        const replaced = newCategoryOrder[cursor];
+        cursor++;
+        return replaced;
+      }
+      return d;
+    });
+    setDevices(newDevices);
+
+    // 백엔드 자동 저장 (이 카테고리 device들의 새 순서만 전송)
+    scheduleSave(newCategoryIds);
+  };
+
+  // 컴포넌트 unmount 시 타이머 정리
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      if (saveStatusTimerRef.current) clearTimeout(saveStatusTimerRef.current);
+    };
+  }, []);
 
   // 🌟 컴포넌트 로드 시 제품 목록 불러오기
   const fetchDevices = async () => {
@@ -190,16 +411,59 @@ export default function ManageDevicesPage() {
               ))}
             </div>
 
-            {/* 현재 필터 결과 요약 */}
-            <p className="text-xs text-slate-500">
-              {filteredDevices.length}건 표시 중
-              {selectedCategory !== ALL_CATEGORIES && (
-                <span className="ml-1">· 카테고리: {selectedCategory}</span>
+            {/* 현재 필터 결과 요약 + 저장 상태 */}
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <p className="text-xs text-slate-500">
+                {filteredDevices.length}건 표시 중
+                {selectedCategory !== ALL_CATEGORIES && (
+                  <span className="ml-1">· 카테고리: {selectedCategory}</span>
+                )}
+                {searchQuery && (
+                  <span className="ml-1">· 검색: &quot;{searchQuery}&quot;</span>
+                )}
+                {isDndEnabled && (
+                  <span className="ml-2 text-blue-600 font-semibold">
+                    · 드래그하여 순서 변경 가능
+                  </span>
+                )}
+                {!isDndEnabled && selectedCategory === ALL_CATEGORIES && (
+                  <span className="ml-2 text-slate-400">
+                    · 순서 변경은 카테고리 탭 선택 시 가능합니다
+                  </span>
+                )}
+                {!isDndEnabled && searchQuery && selectedCategory !== ALL_CATEGORIES && (
+                  <span className="ml-2 text-slate-400">
+                    · 검색 중에는 순서 변경 비활성화
+                  </span>
+                )}
+              </p>
+
+              {/* 저장 상태 인디케이터 */}
+              {saveStatus !== "idle" && (
+                <div className="text-xs flex items-center gap-1.5 px-2.5 py-1 rounded-full border">
+                  {saveStatus === "saving" && (
+                    <>
+                      <FiLoader className="animate-spin w-3 h-3 text-blue-600" />
+                      <span className="text-blue-700 font-semibold">저장 중...</span>
+                    </>
+                  )}
+                  {saveStatus === "saved" && (
+                    <>
+                      <FiCheck className="w-3 h-3 text-emerald-600" />
+                      <span className="text-emerald-700 font-semibold">저장됨</span>
+                    </>
+                  )}
+                  {saveStatus === "error" && (
+                    <>
+                      <FiAlertCircle className="w-3 h-3 text-red-600" />
+                      <span className="text-red-700 font-semibold">
+                        저장 실패 (새로고침 후 다시 시도)
+                      </span>
+                    </>
+                  )}
+                </div>
               )}
-              {searchQuery && (
-                <span className="ml-1">· 검색: &quot;{searchQuery}&quot;</span>
-              )}
-            </p>
+            </div>
           </div>
 
           {/* 결과 없음 처리 */}
@@ -224,6 +488,7 @@ export default function ManageDevicesPage() {
               <table className="w-full text-left text-sm whitespace-nowrap">
                 <thead className="uppercase tracking-wider border-b border-slate-200 bg-slate-50 text-slate-500 font-bold">
                   <tr>
+                    {isDndEnabled && <th className="px-3 py-4 w-10"></th>}
                     <th className="px-6 py-4">이미지</th>
                     <th className="px-6 py-4">제품명 (타이틀)</th>
                     <th className="px-6 py-4">카테고리</th>
@@ -231,6 +496,43 @@ export default function ManageDevicesPage() {
                     <th className="px-6 py-4 text-center">관리</th>
                   </tr>
                 </thead>
+                {isDndEnabled ? (
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <SortableContext
+                      items={filteredDevices.map((d) => d.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      <tbody className="divide-y divide-slate-200">
+                        {filteredDevices.map((device) => (
+                          <SortableDeviceRow
+                            key={device.id}
+                            device={device}
+                            onEdit={() =>
+                              router.push(
+                                `/dashboard/register_device?editId=${device.id}`,
+                              )
+                            }
+                            onDelete={() =>
+                              handleDelete(
+                                device.id,
+                                device.thumbnail_info?.title,
+                              )
+                            }
+                            onOpenRaw={() =>
+                              window.open(
+                                `${process.env.NEXT_PUBLIC_API_URL}/api/devices/${device.id}`,
+                              )
+                            }
+                          />
+                        ))}
+                      </tbody>
+                    </SortableContext>
+                  </DndContext>
+                ) : (
                 <tbody className="divide-y divide-slate-200">
                   {filteredDevices.map((device) => (
                 <tr
@@ -300,6 +602,7 @@ export default function ManageDevicesPage() {
                 </tr>
               ))}
                 </tbody>
+                )}
               </table>
             </div>
           )}
