@@ -19,6 +19,7 @@ import {
   FiInbox,
   FiCoffee,
   FiInfo,
+  FiBriefcase,
 } from "react-icons/fi";
 
 export default function DashboardLayout({
@@ -141,6 +142,11 @@ export default function DashboardLayout({
       name: "엔지니어 라운지",
       path: "/dashboard/register_lounge",
       icon: <FiCoffee className="w-5 h-5" />,
+    },
+    {
+      name: "채용공고 관리",
+      path: "/dashboard/register_recruit",
+      icon: <FiBriefcase className="w-5 h-5" />,
     },
     {
       name: "구독자 이메일 관리",
