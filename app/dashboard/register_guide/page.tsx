@@ -1,11 +1,120 @@
 // app/dashboard/register_guide/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { fetchAuthSession } from "aws-amplify/auth";
-import { FiTrash2, FiEdit2, FiX, FiFileText, FiPlus } from "react-icons/fi";
+import {
+  FiTrash2,
+  FiEdit2,
+  FiX,
+  FiFileText,
+  FiPlus,
+  FiMove,
+  FiLoader,
+  FiCheck,
+  FiAlertCircle,
+} from "react-icons/fi";
 import { uploadImageToS3 } from "@/utils/uploadImage"; // PDF도 이 함수로 업로드 가능
 import { AutoTextarea } from "@/components/AutoTextarea";
+// 🌟 D&D
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+
+type SaveStatus = "idle" | "saving" | "saved" | "error";
+
+// 🌟 D&D 가능한 가이드 테이블 행
+function SortableGuideRow({
+  guide,
+  onEdit,
+  onDelete,
+}: {
+  guide: any;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: guide.id });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    background: isDragging ? "#f1f5f9" : undefined,
+  };
+
+  return (
+    <tr ref={setNodeRef} style={style} className="hover:bg-slate-50">
+      <td className="px-3 py-3 w-10">
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing p-1.5 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 touch-none"
+          title="드래그하여 순서 변경"
+          aria-label="순서 변경"
+        >
+          <FiMove />
+        </button>
+      </td>
+      <td className="px-4 py-3 font-semibold text-blue-800">
+        {guide.main_category}
+      </td>
+      <td className="px-4 py-3">{guide.title}</td>
+      <td className="px-4 py-3">
+        {guide.pdf_url ? (
+          <a
+            href={guide.pdf_url}
+            target="_blank"
+            rel="noreferrer"
+            className="text-blue-500 flex items-center"
+          >
+            <FiFileText className="mr-1" /> 보기
+          </a>
+        ) : (
+          "-"
+        )}
+      </td>
+      <td className="px-4 py-3 text-slate-500">
+        {new Date(guide.created_at).toLocaleDateString()}
+      </td>
+      <td className="px-4 py-3 text-center">
+        <button
+          onClick={onEdit}
+          className="p-2 text-green-600 hover:bg-green-50 rounded mr-1"
+        >
+          <FiEdit2 />
+        </button>
+        <button
+          onClick={onDelete}
+          className="p-2 text-red-500 hover:bg-red-50 rounded"
+        >
+          <FiTrash2 />
+        </button>
+      </td>
+    </tr>
+  );
+}
 
 export default function RegisterGuidePage() {
   const [guides, setGuides] = useState<any[]>([]);
@@ -24,6 +133,11 @@ export default function RegisterGuidePage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  // 🌟 D&D 자동 저장 상태
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  const saveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const saveStatusTimerRef = useRef<NodeJS.Timeout | null>(null);
+
   // 🌐 영문 입력 토글
   const openEng = () => setShowEng(true);
   const closeEng = () => {
@@ -35,14 +149,18 @@ export default function RegisterGuidePage() {
     setShowEng(false);
   };
 
-  // 페이지네이션 상태
-  const [nextPageKey, setNextPageKey] = useState<string | null>(null);
-  const [hasNextPage, setHasNextPage] = useState(false);
-
   // 데이터 로드
   useEffect(() => {
     fetchCategories();
     fetchGuides();
+  }, []);
+
+  // unmount 시 타이머 정리
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      if (saveStatusTimerRef.current) clearTimeout(saveStatusTimerRef.current);
+    };
   }, []);
 
   const fetchCategories = async () => {
@@ -58,24 +176,70 @@ export default function RegisterGuidePage() {
     }
   };
 
-  const fetchGuides = async (loadMore = false) => {
+  // 🔧 페이지네이션 제거 - 한 번에 모든 가이드 로드 (limit=1000)
+  //   - 가이드 수가 적어 부담 없음
+  //   - D&D로 순서 변경 가능
+  const fetchGuides = async () => {
     try {
-      let url = `${process.env.NEXT_PUBLIC_API_URL}/api/guides?limit=10`;
-      if (loadMore && nextPageKey) url += `&lastEvaluatedKey=${nextPageKey}`;
-
-      const res = await fetch(url);
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/guides?limit=1000`,
+      );
       const data = await res.json();
-
-      if (loadMore) {
-        setGuides((prev) => [...prev, ...data.data]);
-      } else {
-        setGuides(data.data);
-      }
-      setNextPageKey(data.nextPageKey);
-      setHasNextPage(data.hasNextPage);
+      setGuides(data.data || []);
     } catch (err) {
       console.error(err);
     }
+  };
+
+  // 🌟 D&D sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  // 🌟 순서 자동 저장 (debounce 1초)
+  const scheduleSave = (orderedIds: string[]) => {
+    setSaveStatus("saving");
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    if (saveStatusTimerRef.current) clearTimeout(saveStatusTimerRef.current);
+    saveTimerRef.current = setTimeout(async () => {
+      try {
+        const session = await fetchAuthSession();
+        const token = session.tokens?.accessToken?.toString();
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/guides/reorder`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ ordered_ids: orderedIds }),
+          },
+        );
+        if (!res.ok) throw new Error("저장 실패");
+        setSaveStatus("saved");
+        saveStatusTimerRef.current = setTimeout(
+          () => setSaveStatus("idle"),
+          3000,
+        );
+      } catch (err) {
+        console.error("가이드 순서 저장 실패:", err);
+        setSaveStatus("error");
+      }
+    }, 1000);
+  };
+
+  // 🌟 드래그 종료 핸들러
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = guides.findIndex((g) => g.id === active.id);
+    const newIndex = guides.findIndex((g) => g.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const newGuides = arrayMove(guides, oldIndex, newIndex);
+    setGuides(newGuides);
+    scheduleSave(newGuides.map((g) => g.id));
   };
 
   // 등록 및 수정
@@ -314,13 +478,47 @@ export default function RegisterGuidePage() {
 
       {/* 목록 영역 */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-        <h3 className="text-lg font-bold text-slate-800 mb-4">
-          등록된 가이드 목록
-        </h3>
+        <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
+          <h3 className="text-lg font-bold text-slate-800">
+            등록된 가이드 목록 ({guides.length})
+          </h3>
+
+          {/* 저장 상태 인디케이터 */}
+          {saveStatus !== "idle" && (
+            <div className="text-xs flex items-center gap-1.5 px-2.5 py-1 rounded-full border">
+              {saveStatus === "saving" && (
+                <>
+                  <FiLoader className="animate-spin w-3 h-3 text-blue-600" />
+                  <span className="text-blue-700 font-semibold">저장 중...</span>
+                </>
+              )}
+              {saveStatus === "saved" && (
+                <>
+                  <FiCheck className="w-3 h-3 text-emerald-600" />
+                  <span className="text-emerald-700 font-semibold">저장됨</span>
+                </>
+              )}
+              {saveStatus === "error" && (
+                <>
+                  <FiAlertCircle className="w-3 h-3 text-red-600" />
+                  <span className="text-red-700 font-semibold">
+                    저장 실패
+                  </span>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
+        <p className="text-xs text-slate-500 mb-3">
+          ⠿ 핸들을 드래그하면 순서가 자동 저장됩니다 (회사 홈페이지 표시 순서)
+        </p>
+
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-slate-50 border-b text-slate-500">
               <tr>
+                <th className="px-3 py-3 w-10"></th>
                 <th className="px-4 py-3">카테고리</th>
                 <th className="px-4 py-3">제목</th>
                 <th className="px-4 py-3">PDF 첨부</th>
@@ -328,58 +526,33 @@ export default function RegisterGuidePage() {
                 <th className="px-4 py-3 text-center">관리</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
-              {guides.map((g) => (
-                <tr key={g.id} className="hover:bg-slate-50">
-                  <td className="px-4 py-3 font-semibold text-blue-800">
-                    {g.main_category}
-                  </td>
-                  <td className="px-4 py-3">{g.title}</td>
-                  <td className="px-4 py-3">
-                    {g.pdf_url ? (
-                      <a
-                        href={g.pdf_url}
-                        target="_blank"
-                        className="text-blue-500 flex items-center"
-                      >
-                        <FiFileText className="mr-1" /> 보기
-                      </a>
-                    ) : (
-                      "-"
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-slate-500">
-                    {new Date(g.created_at).toLocaleDateString()}
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <button
-                      onClick={() => handleEditClick(g)}
-                      className="p-2 text-green-600 hover:bg-green-50 rounded mr-1"
-                    >
-                      <FiEdit2 />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(g.id)}
-                      className="p-2 text-red-500 hover:bg-red-50 rounded"
-                    >
-                      <FiTrash2 />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={guides.map((g) => g.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <tbody className="divide-y divide-slate-100">
+                  {guides.map((g) => (
+                    <SortableGuideRow
+                      key={g.id}
+                      guide={g}
+                      onEdit={() => handleEditClick(g)}
+                      onDelete={() => handleDelete(g.id)}
+                    />
+                  ))}
+                </tbody>
+              </SortableContext>
+            </DndContext>
           </table>
         </div>
 
-        {/* 🌟 더보기 (페이지네이션) 버튼 */}
-        {hasNextPage && (
-          <div className="mt-6 text-center">
-            <button
-              onClick={() => fetchGuides(true)}
-              className="px-6 py-2 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 font-semibold"
-            >
-              10개 더보기
-            </button>
+        {guides.length === 0 && (
+          <div className="text-center py-12 bg-slate-50 rounded-lg border-2 border-dashed border-slate-200 text-slate-500 mt-4">
+            등록된 가이드가 없습니다.
           </div>
         )}
       </div>
